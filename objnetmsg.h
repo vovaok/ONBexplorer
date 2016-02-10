@@ -2,10 +2,6 @@
 #define _OBJNETMSG_H
 
 #include "objnetcommon.h"
-#ifndef __ICCARM__
-#include <QtCore>
-#define ByteArray QByteArray
-#endif
 
 namespace Objnet
 {

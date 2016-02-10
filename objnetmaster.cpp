@@ -90,9 +90,11 @@ void ObjnetMaster::onTimer()
         ObjnetDevice *dev = mDevices[*it];
         if (mAdjacentNode)
         {
+            unsigned char supernetaddr = mAdjacentNode->natRoute(dev->mNetAddress);
             ByteArray ba;
-            ba.append(dev->mNetAddress);
+            ba.append(supernetaddr);
             mAdjacentNode->acceptServiceMessage(0, svcKill, &ba);
+            removeNatPair(supernetaddr, dev->mNetAddress);
         }
         #ifndef __ICCARM__
         emit devRemoved(dev->mNetAddress);
@@ -106,6 +108,10 @@ void ObjnetMaster::onTimer()
 
 void ObjnetMaster::acceptServiceMessage(unsigned char sender, SvcOID oid, ByteArray *ba)
 {
+//    #ifndef __ICCARM__
+//    qDebug() << "master" << QString::fromStdString(mName) << "accept" << oid;
+//    #endif
+
     switch (oid)
     {
       case svcWelcome:
@@ -117,17 +123,12 @@ void ObjnetMaster::acceptServiceMessage(unsigned char sender, SvcOID oid, ByteAr
         ObjnetDevice *dev = mDevices.count(netaddr)? mDevices[netaddr]: 0L;
         if (dev)
         {
-            if (dev->mPresent && dev->isValid())
-            {
-                int len = dev->name().length();
-                if (len > 8)
-                    len = 8;
-                unsigned long classid = dev->classId();
-                // send different info
-                sendServiceMessage(sender, svcClass, ByteArray(reinterpret_cast<const char*>(&classid), sizeof(unsigned long)));
-                sendServiceMessage(sender, svcName, ByteArray(dev->name().c_str(), len));
-//                sendServiceMessage(sender, svcEcho); // echo at the end of info
-            }
+//            if (dev->mPresent) // && dev->isValid())
+//            {
+                ByteArray ba;
+                ba.append(supernetaddr);
+                mAdjacentNode->sendServiceMessage(sender, svcConnected, ba);
+//            }
         }
         break;
       }
@@ -139,11 +140,19 @@ void ObjnetMaster::acceptServiceMessage(unsigned char sender, SvcOID oid, ByteAr
 void ObjnetMaster::parseServiceMessage(CommonMessage &msg)
 {
     SvcOID oid = (SvcOID)msg.localId().oid;
+
+//    #ifndef __ICCARM__
+//    qDebug() << "master" << QString::fromStdString(mName) << "parse" << oid;
+//    #endif
+
     unsigned char netaddr = msg.localId().sender;
     ObjnetDevice *dev = mDevices.count(netaddr)? mDevices[netaddr]: 0L;
     switch (oid)
     {
       case svcEcho:
+//        #ifndef __ICCARM__
+//        qDebug() << "master" << QString::fromStdString(mName) << "parse echo from" << netaddr;
+//        #endif
         if (!dev)
             sendServiceMessage(netaddr, svcHello); // reset node's connection state
         else
@@ -192,17 +201,31 @@ void ObjnetMaster::parseServiceMessage(CommonMessage &msg)
             ByteArray outBa;
             outBa.append(netaddr);
             sendServiceMessage(netaddr, welcomeCmd, outBa);     // тупо отправляем сообщение с присвоенным адресом
+            ba.append(netaddr);                             // добавляем в конец созданный логический адрес узла
         }
         else
         {
             ByteArray outBa;
             outBa.append(netaddr);
-            unsigned char subnetaddr = ba[ba.count()-1];    // узнаём его адрес в той подсети
+            unsigned char subnetaddr = ba[1];       // узнаём его адрес в той подсети
             outBa.append(subnetaddr);
-            sendServiceMessage(tempaddr, welcomeCmd, outBa);     // тупо отправляем сообщение с присвоенным адресом
+            sendServiceMessage(tempaddr, welcomeCmd, outBa);     // тупо отправляем сообщение с присвоенными адресами
+            ba[1] = netaddr;                        // теперь здесь адрес в этой подсети
+            ba.append(tempaddr);
+            if (mAdjacentNode)
+            {
+                for (int i=2; i<ba.size(); i++)
+                    ba[i] = mAdjacentNode->natRoute(ba[i]);
+            }
         }
 
-        ba.append(netaddr);                         // добавляем в конец созданный логический адрес узла
+//        if (mAdjacentNode)
+//        {
+//            for (int i=1; i<ba.count(); i++)
+//                ba[i] = mAdjacentNode->natRoute(tempaddr);                // меняем адрес в той подсети на адрес в этой подсети
+//        }
+
+//        ba.append(netaddr);                         // добавляем в конец созданный логический адрес текущего узла
 
         #ifndef __ICCARM__
         emit devAdded(netaddr, ba);                 // устройство добавлено
@@ -227,14 +250,10 @@ void ObjnetMaster::parseServiceMessage(CommonMessage &msg)
         {
             unsigned char addr = mAdjacentNode->natRoute(netaddr);
             if (addr != 0x7F)
-                mAdjacentNode->acceptServiceMessage(addr, svcConnected, &msg.data());
-        }
-        if (dev)
-        {
-            if (!dev->isValid())
             {
-                requestClassId(netaddr);
-                requestName(netaddr);
+                ByteArray ba;
+                ba.append(addr);
+                mAdjacentNode->acceptServiceMessage(0, svcConnected, &ba);
             }
         }
         #ifndef __ICCARM__
@@ -250,7 +269,12 @@ void ObjnetMaster::parseServiceMessage(CommonMessage &msg)
         {
             unsigned char addr = mAdjacentNode->natRoute(netaddr);
             if (addr != 0x7F)
-                mAdjacentNode->acceptServiceMessage(addr, svcDisconnected, &msg.data());
+            {
+                ByteArray ba;
+                ba.append(addr);
+                mAdjacentNode->acceptServiceMessage(0, svcDisconnected, &ba);
+                removeNatPair(addr, netaddr);
+            }
         }
         #ifndef __ICCARM__
         emit devDisconnected(netaddr);
@@ -266,7 +290,12 @@ void ObjnetMaster::parseServiceMessage(CommonMessage &msg)
         {
             unsigned char addr = mAdjacentNode->natRoute(netaddr);
             if (addr != 0x7F)
-                mAdjacentNode->acceptServiceMessage(addr, svcKill, &msg.data());
+            {
+                ByteArray ba;
+                ba.append(addr);
+                mAdjacentNode->acceptServiceMessage(0, svcKill, &ba);
+                removeNatPair(addr, netaddr);
+            }
         }
         #ifndef __ICCARM__
         emit devRemoved(netaddr);

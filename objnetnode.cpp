@@ -20,8 +20,7 @@ ObjnetNode::ObjnetNode(ObjnetInterface *iface) :
     ObjectInfo obj;
     obj.bindVariableRO("class", &mClass, sizeof(mClass));
     registerSvcObject(obj);
-#warning name ne rabotaet, t.k. ptr is being changed
-    obj.bindVariableRO("name", const_cast<char*>(mName.c_str()), mName.length());
+    obj.bindString("name", &mName);
     registerSvcObject(obj);
 }
 //---------------------------------------------------------------------------
@@ -55,13 +54,6 @@ void ObjnetNode::task()
       case netnAccepted:
       {
         mTimer.stop();
-        int len = mName.length();
-        if (len > 8)
-            len = 8;
-        // send different info
-        sendServiceMessage(svcClass, ByteArray(reinterpret_cast<const char*>(&mClass), sizeof(mClass)));
-        sendServiceMessage(svcName, ByteArray(mName.c_str(), len));
-        sendServiceMessage(svcEcho); // echo at the end of info
         mNetState = netnReady;
         break;
       }
@@ -78,7 +70,11 @@ void ObjnetNode::task()
 
 void ObjnetNode::acceptServiceMessage(unsigned char sender, SvcOID oid, ByteArray *ba)
 {
-    CommonMessage msg;
+//    #ifndef __ICCARM__
+//    qDebug() << "node" << QString::fromStdString(mName) << "accept" << oid;
+//    #endif
+
+//    CommonMessage msg;
     switch (oid)
     {
       case svcHello: // translate hello msg
@@ -101,8 +97,13 @@ void ObjnetNode::acceptServiceMessage(unsigned char sender, SvcOID oid, ByteArra
 void ObjnetNode::parseServiceMessage(CommonMessage &msg)
 {
     if (msg.isGlobal())
-    {
+    {        
         StdAID aid = (StdAID)msg.globalId().aid;
+
+//        #ifndef __ICCARM__
+//        qDebug() << "node" << QString::fromStdString(mName) << "global" << aid;
+//        #endif
+
         switch (aid)
         {
           case aidPollNodes:
@@ -119,8 +120,9 @@ void ObjnetNode::parseServiceMessage(CommonMessage &msg)
             break;
 
           case aidConnReset:
-            mNetAddress = 0x00;
-            mNetState = netnConnecting;
+//            mNetAddress = 0x00;
+//            mNetState = netnConnecting;
+            mNetState = netnStart;
             break;
 
           default:;
@@ -130,6 +132,11 @@ void ObjnetNode::parseServiceMessage(CommonMessage &msg)
 
     SvcOID oid = (SvcOID)msg.localId().oid;
     unsigned char remoteAddr = msg.localId().sender;
+
+//    #ifndef __ICCARM__
+//    qDebug() << "node" << QString::fromStdString(mName) << "parse" << oid;
+//    #endif
+
     switch (oid)
     {
       case svcHello:
@@ -142,12 +149,15 @@ void ObjnetNode::parseServiceMessage(CommonMessage &msg)
         {
             mNetAddress = msg.data()[0];
             mNetState = netnAccepted;
-//            if (mAdjacentNode)
-//            {
-//                mAdjacentNode->mNetAddress = mNetAddress;
-//            }
+            int len = mName.length();
+            if (len > 8)
+                len = 8;
+            // send different info
+            sendServiceMessage(remoteAddr, svcClass, ByteArray(reinterpret_cast<const char*>(&mClass), sizeof(mClass)));
+            sendServiceMessage(remoteAddr, svcName, ByteArray(mName.c_str(), len));
+            sendServiceMessage(remoteAddr, svcEcho); // echo at the end of info
         }
-        else if (mAdjacentNode)// remote addr
+        else if (mAdjacentNode) // remote addr
         {
             mAdjacentNode->acceptServiceMessage(remoteAddr, oid, &msg.data());
         }
@@ -159,15 +169,13 @@ void ObjnetNode::parseServiceMessage(CommonMessage &msg)
     if (oid < mSvcObjects.size())
     {
         ObjectInfo &obj = mSvcObjects[oid];
-        if ((obj.mWriteSize > 0) && ((size_t)msg.data().size() == obj.mWriteSize))
+        if (msg.data().size()) // write
         {
-            for (size_t i=0; i<obj.mWriteSize; i++)
-                reinterpret_cast<unsigned char*>(obj.mWritePtr)[i] = msg.data()[i];
+            obj.write(msg.data());
         }
-        if (obj.mReadSize > 0)
+        else
         {
-            ByteArray ba(reinterpret_cast<const char*>(obj.mReadPtr), obj.mReadSize);
-            sendServiceMessage(remoteAddr, oid, ba);
+            sendServiceMessage(remoteAddr, oid, obj.read());
         }
     }
 }
@@ -180,24 +188,23 @@ void ObjnetNode::parseMessage(CommonMessage &msg)
         return;
     }
 
-    SvcOID oid = (SvcOID)msg.localId().oid;
+    unsigned char oid = msg.localId().oid;
     unsigned char remoteAddr = msg.localId().sender;
 
     if (oid < mObjects.size())
     {
         ObjectInfo &obj = mObjects[oid];
-        if ((obj.mWriteSize > 0) && ((size_t)msg.data().size() == obj.mWriteSize))
+        if (msg.data().size()) // write
         {
-            for (size_t i=0; i<obj.mWriteSize; i++)
-                reinterpret_cast<unsigned char*>(obj.mWritePtr)[i] = msg.data()[i];
+            obj.write(msg.data());
         }
-        if (obj.mReadSize > 0)
+        else
         {
-            ByteArray ba(reinterpret_cast<const char*>(obj.mReadPtr), obj.mReadSize);
-            sendMessage(remoteAddr, oid, ba);
+            sendMessage(remoteAddr, oid, obj.read());
         }
     }
 }
+//---------------------------------------------------------
 
 void Objnet::ObjnetNode::onTimer()
 {

@@ -64,7 +64,7 @@ void ObjnetCommonNode::task()
         else
         {
             LocalMsgId id = inMsg.localId();
-            if (id.addr == mNetAddress || id.addr == 0x7F || mNetAddress == 0xFF)
+            if (id.addr == mNetAddress || id.addr == 0x7F || mNetAddress == 0xFF) // logical address match OR universal address OR address is not assigned yet
             {
                 if (id.frag) // if message is fragmented
                 {
@@ -90,26 +90,21 @@ void ObjnetCommonNode::task()
                         parseMessage(inMsg);
                 }
             }
-            else // retranslate
+            else if (mAdjacentNode) // retranslate
             {
-//                if (mRetranslateEvent)
-//                    mRetranslateEvent(inMsg);
-                if (mAdjacentNode)
+                if (id.mac) // not a master
                 {
+                    id.addr = mAdjacentNode->natRoute(id.addr);
                     id.mac = mAdjacentNode->route(id.addr);
-                    if (id.mac)
-                    {
-                        id.addr = natRoute(id.addr);
-                        id.sender++;
-                    }
-                    else
-                    {
-                        id.sender = mAdjacentNode->natRoute(id.sender);
-                        --id.addr;
-                    }
-                    inMsg.setLocalId(id);
-                    mAdjacentNode->mInterface->write(inMsg);
+                    id.sender++;
                 }
+                else // this is MAASTEEEERRRRR!!
+                {
+                    id.sender = mAdjacentNode->natRoute(id.sender);
+                    --id.addr;
+                }
+                inMsg.setLocalId(id);
+                mAdjacentNode->mInterface->write(inMsg);
             }
 
             std::list<unsigned long> toRemove;

@@ -90,6 +90,6 @@ public:
     int maxFrameSize() const {return mMaxFrameSize;}
 };
 
-};
+}
 
 #endif

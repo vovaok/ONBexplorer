@@ -5,6 +5,9 @@
 #include <typeinfo>
 #ifdef __ICCARM__
 #include "core/core.h"
+#else
+#include <QtCore>
+#define ByteArray QByteArray
 #endif
 
 /*! @brief Object Network.
@@ -115,16 +118,20 @@ struct GlobalMsgId
 
 class ObjectInfo
 {
+public:
+    typedef enum {Common, String} Type;
+
 private:
     void *mReadPtr, *mWritePtr;
     size_t mReadSize, mWriteSize;
+    Type mType;
     string mName;
 
-    friend class ObjnetNode;
+//    friend class ObjnetNode;
 
 public:
     ObjectInfo() :
-        mReadPtr(0L), mWritePtr(0L), mReadSize(0), mWriteSize(0)
+        mReadPtr(0L), mWritePtr(0L), mReadSize(0), mWriteSize(0), mType(Common)
     {
     }
 
@@ -134,6 +141,7 @@ public:
         mReadSize = size;
         mWritePtr = 0;
         mWriteSize = 0;
+        mType = Common;
         mName = name;
         return *this;
     }
@@ -144,6 +152,7 @@ public:
         mReadSize = 0;
         mWritePtr = ptr;
         mWriteSize = size;
+        mType = Common;
         mName = name;
         return *this;
     }
@@ -152,6 +161,7 @@ public:
     {
         mReadPtr = mWritePtr = ptr;
         mReadSize = mWriteSize = size;
+        mType = Common;
         mName = name;
         return *this;
     }
@@ -162,8 +172,57 @@ public:
         mReadSize = outSize;
         mWritePtr = inPtr;
         mWriteSize = inSize;
+        mType = Common;
         mName = name;
         return *this;
+    }
+
+    ObjectInfo &bindString(string name, string *str)
+    {
+        mReadPtr = mWritePtr = str;
+        mReadSize = mWriteSize = 1;
+        mType = String;
+        mName = name;
+        return *this;
+    }
+
+    ByteArray read()
+    {
+        if (!mReadSize)
+            return ByteArray();
+        if (mType == String)
+        {
+            string *str = reinterpret_cast<string*>(mReadPtr);
+            if (str)
+                return ByteArray(str->c_str(), str->length());
+            return ByteArray();
+        }
+        else
+        {
+            return ByteArray(reinterpret_cast<const char*>(mReadPtr), mReadSize);
+        }
+    }
+
+    bool write(const ByteArray &ba)
+    {
+        if (!mWriteSize)
+            return false;
+        if (mType == String)
+        {
+            string *str = reinterpret_cast<string*>(mWritePtr);
+            if (!str)
+                return false;
+            else
+                *str = string(ba.data(), ba.size());
+            return true;
+        }
+        else if ((size_t)ba.size() == mWriteSize)
+        {
+            for (size_t i=0; i<mWriteSize; i++)
+                reinterpret_cast<unsigned char*>(mWritePtr)[i] = ba[i];
+            return true;
+        }
+        return false;
     }
 };
 

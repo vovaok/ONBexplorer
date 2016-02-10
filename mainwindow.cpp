@@ -29,9 +29,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(can, SIGNAL(disconnected()), this, SLOT(onBoardDisconnect()));
     //ui->mainToolBar->addWidget(can);
 
-    master = new ObjnetMaster(new SerialCanInterface(can));
-//    onb << new ObjnetVirtualInterface("main");
-//    master = new ObjnetMaster(onb.last());
+//    master = new ObjnetMaster(new SerialCanInterface(can));
+    onb << new ObjnetVirtualInterface("main");
+    master = new ObjnetMaster(onb.last());
+    master->setName("main");
     connect(master, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
     connect(master, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
     connect(master, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
@@ -61,6 +62,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     onb << new ObjnetVirtualInterface("arm");
     ObjnetMaster *masterArm = new ObjnetMaster(onb.last());
+    masterArm->setName("arm");
     masterArm->connect(n2);
     ObjnetNode *n3;
     onb << new ObjnetVirtualInterface("arm");
@@ -79,6 +81,7 @@ MainWindow::MainWindow(QWidget *parent) :
     onb << new ObjnetVirtualInterface("hand");
     ObjnetMaster *masterHand = new ObjnetMaster(onb.last());
     masterHand->connect(n3);
+    masterHand->setName("hand");
     ObjnetNode *n4;
     onb << new ObjnetVirtualInterface("hand");
     n4 = new ObjnetNode(onb.last());
@@ -429,18 +432,18 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 
     QTreeWidgetItem *parent = mTree->topLevelItem(0);
 
-    for (int i=locData.size()-1; i>=0; i--)
+    for (int i=locData.size()-1; i>0; --i)
     {
         int mac = locData[0];
         int netaddr = locData[i];
         bool found = false;
         for (int j=0; j<parent->childCount(); j++)
         {
-            if (parent->child(j)->text(1).toInt() == netaddr)
+            if (parent->child(j)->text(2).toInt() == netaddr)
             {
                 parent = parent->child(j);
                 found = true;
-                if (i == 0)
+                if (i == 1)
                 {
                     int netaddr = parent->text(2).toInt();
                     mItems.remove(netaddr);
@@ -454,7 +457,7 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
         {
             QStringList strings;
             strings << ("node"+QString::number(netAddress)) << QString::number(mac);
-            if (i == 0)
+            //if (i == 1)
                 strings << QString::number(netAddress);
             QTreeWidgetItem *item = new QTreeWidgetItem(strings);
             parent->addChild(item);
@@ -478,6 +481,12 @@ void MainWindow::onDevConnected(unsigned char netAddress)
     if (item)
     {
         item->setDisabled(false);
+//        ObjnetDevice *dev2 = master->devices()[netAddress];
+//        if (!dev2->isValid())
+//        {
+            master->requestClassId(netAddress);
+            master->requestName(netAddress);
+//        }
     }
 }
 

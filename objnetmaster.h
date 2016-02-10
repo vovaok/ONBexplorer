@@ -23,6 +23,7 @@ private:
     std::map<unsigned char, unsigned char> mRouteTable; // route table: returns mac by network address
     unsigned char mAssignNetAddress; // network address for assigning to nodes (a la DHCP)
     bool mAdjIfConnected; // connection state of adjacent interface
+    string mName;
 
 protected:
 #ifdef __ICCARM__
@@ -59,6 +60,8 @@ public:
     void task();
 #endif
     void reset();
+
+    void setName(string name) {mName = name;}
 
     bool isConnected() const {return !mDevices.empty();}
 
