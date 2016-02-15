@@ -21,6 +21,7 @@ private:
 //    ObjnetDeviceTreeNode mTree;
     DeviceMap mDevices; // map devices by mac
     std::map<unsigned char, unsigned char> mRouteTable; // route table: returns mac by network address
+    ObjnetDevice* mLocalnetDevices[16]; // array of devices on the local network accessed by mac
     unsigned char mAssignNetAddress; // network address for assigning to nodes (a la DHCP)
     bool mAdjIfConnected; // connection state of adjacent interface
     string mName;

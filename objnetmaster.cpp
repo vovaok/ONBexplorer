@@ -9,6 +9,8 @@ ObjnetMaster::ObjnetMaster(ObjnetInterface *iface) :
     mAssignNetAddress(1),
     mAdjIfConnected(false)
 {
+    for (int i=0; i<16; i++)
+        mLocalnetDevices[i] = 0L;
     setBusAddress(0);
     mNetAddress = 0x00;
     #ifdef __ICCARM__
@@ -154,7 +156,9 @@ void ObjnetMaster::parseServiceMessage(CommonMessage &msg)
 //        qDebug() << "master" << QString::fromStdString(mName) << "parse echo from" << netaddr;
 //        #endif
         if (!dev)
+        {
             sendServiceMessage(netaddr, svcHello); // reset node's connection state
+        }
         else
         {
             if (!dev->mPresent)
@@ -184,17 +188,25 @@ void ObjnetMaster::parseServiceMessage(CommonMessage &msg)
         ByteArray ba = msg.data();
         unsigned char mac = ba[0];
         bool localnet = (ba.size() == 1);
+        if (localnet)
+            dev = mLocalnetDevices[mac];
         unsigned char tempaddr = netaddr;
-        if (!dev || !localnet)                                        // сначала добавляем девайс с маком, который в id-шнике, если он ещё не добавлен
+        if (!dev || !localnet)                           // сначала добавляем девайс с маком, который в id-шнике, если он ещё не добавлен
         {
             if (!localnet)
                 mac = route(tempaddr);
             netaddr = createNetAddress(mac);             // создаём новый адрес
             dev = new ObjnetDevice(netaddr);             // создаём объект с новым адресом
             dev->mAutoDelete = true;                     // раз автоматически создали - автоматически и удалим)
+            if (localnet)                                // если девайс в текцщей подсети...
+                mLocalnetDevices[mac] = dev;             // ...запоминаем для поиска по маку
+#warning NEED TO IMPLEMENT: kill mLocalnetDevices[mac] on svcKill. A mb i ne nado!!
             mDevices[netaddr] = dev;                     // запоминаем для поиска по адресу
             welcomeCmd = svcWelcome;                     // меняем команду на svcWelcome
         }
+
+        if (dev)
+            netaddr = dev->netAddress();
 
         if (localnet)                          // если это девайс текущей подсети...
         {

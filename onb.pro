@@ -11,6 +11,7 @@ TEMPLATE = app
 
 COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/commlib/commlib.pri)
+include($$COMPONENTS/usbhid/usbhid.pri)
 
 win32: {
     CONFIG(release,debug|release) {
@@ -28,7 +29,8 @@ SOURCES += main.cpp\
     serialcaninterface.cpp \
     objnetvirtualinterface.cpp \
     objnetvirtualserver.cpp \
-    objnetnode.cpp
+    objnetnode.cpp \
+    usbhidonbinterface.cpp
 
 HEADERS  += mainwindow.h \
     objnetCommonNode.h \
@@ -40,6 +42,7 @@ HEADERS  += mainwindow.h \
     serialcaninterface.h \
     objnetvirtualinterface.h \
     objnetvirtualserver.h \
-    objnetnode.h
+    objnetnode.h \
+    usbhidonbinterface.h
 
 FORMS    += mainwindow.ui

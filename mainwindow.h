@@ -12,6 +12,8 @@
 #include "objnetvirtualinterface.h"
 #include "objnetvirtualserver.h"
 
+#include "usbhidonbinterface.h"
+
 namespace Ui {
 class MainWindow;
 }

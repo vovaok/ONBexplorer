@@ -51,8 +51,8 @@ protected:
 
     unsigned char route(unsigned char netAddress) {(void)netAddress; return 0;}
 
-    void setClassId(unsigned long classId) {mClass = classId;}
-    void setSerial(unsigned long serial) {mSerial = serial;}
+//    void setClassId(unsigned long classId) {mClass = classId;}
+//    void setSerial(unsigned long serial) {mSerial = serial;}
 
     void registerSvcObject(const ObjectInfo &info) {mSvcObjects.push_back(info);}
 
@@ -63,6 +63,10 @@ protected slots:
 
 public:
     ObjnetNode(ObjnetInterface *iface);
+
+#warning temporary these two are public instead of protected:
+    void setClassId(unsigned long classId) {mClass = classId;}
+    void setSerial(unsigned long serial) {mSerial = serial;}
 
     void setName(string name) {mName = name.substr(0, 8);}
     string name() const {return mName;}

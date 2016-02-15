@@ -30,9 +30,10 @@ MainWindow::MainWindow(QWidget *parent) :
     //ui->mainToolBar->addWidget(can);
 
 //    master = new ObjnetMaster(new SerialCanInterface(can));
-    onb << new ObjnetVirtualInterface("main");
-    master = new ObjnetMaster(onb.last());
-    master->setName("main");
+    master = new ObjnetMaster(new UsbHidOnbInterface(new UsbHid(0x0bad, 0xcafe, this)));
+//    onb << new ObjnetVirtualInterface("main");
+//    master = new ObjnetMaster(onb.last());
+//    master->setName("main");
     connect(master, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
     connect(master, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
     connect(master, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
@@ -481,12 +482,12 @@ void MainWindow::onDevConnected(unsigned char netAddress)
     if (item)
     {
         item->setDisabled(false);
-//        ObjnetDevice *dev2 = master->devices()[netAddress];
-//        if (!dev2->isValid())
-//        {
+        const ObjnetDevice *dev2 = master->devices().at(netAddress);
+        if (!dev2->isValid())
+        {
             master->requestClassId(netAddress);
             master->requestName(netAddress);
-//        }
+        }
     }
 }
 

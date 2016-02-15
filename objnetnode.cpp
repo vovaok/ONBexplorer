@@ -11,7 +11,7 @@ ObjnetNode::ObjnetNode(ObjnetInterface *iface) :
     mFullName("<Generic objnet node>")
 {
     #ifdef __ICCARM__
-    mTimer.setTimeoutEvent(EVENT(&ObjnetMaster::onTimer));
+    mTimer.setTimeoutEvent(EVENT(&ObjnetNode::onTimer));
     #else
     QObject::connect(&mTimer, SIGNAL(timeout()), this, SLOT(onTimer()));
     #endif
@@ -32,6 +32,7 @@ void ObjnetNode::task()
     switch (mNetState)
     {
       case netnStart:
+//        mInterface->flush();
         mNetAddress = 0xFF;
         mTimer.stop();
         break;
@@ -47,7 +48,7 @@ void ObjnetNode::task()
         break;
 
       case netnDisconnecting:
-        mInterface->flush();
+        //mInterface->flush();
         mTimer.stop();
         break;
 
@@ -97,7 +98,7 @@ void ObjnetNode::acceptServiceMessage(unsigned char sender, SvcOID oid, ByteArra
 void ObjnetNode::parseServiceMessage(CommonMessage &msg)
 {
     if (msg.isGlobal())
-    {        
+    {
         StdAID aid = (StdAID)msg.globalId().aid;
 
 //        #ifndef __ICCARM__
@@ -140,7 +141,9 @@ void ObjnetNode::parseServiceMessage(CommonMessage &msg)
     switch (oid)
     {
       case svcHello:
-        mNetState = netnConnecting;
+//        mNetState = netnConnecting;
+        mNetState = netnStart;
+        mInterface->flush();
         break;
 
       case svcWelcome:
@@ -206,7 +209,7 @@ void ObjnetNode::parseMessage(CommonMessage &msg)
 }
 //---------------------------------------------------------
 
-void Objnet::ObjnetNode::onTimer()
+void ObjnetNode::onTimer()
 {
     if (mNetState == netnConnecting)
     {
