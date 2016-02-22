@@ -8,6 +8,7 @@ QT       += core widgets network
 
 TARGET = onb
 TEMPLATE = app
+DESTDIR = $$PWD/$$TARGET
 
 COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/commlib/commlib.pri)
@@ -18,12 +19,11 @@ OBJNET_DIR = $$PROJ_DIR/iar/components/stm32++/src/objnet
 
 INCLUDEPATH += $$OBJNET_DIR
 
-win32: {
-    CONFIG(release,debug|release) {
-        DESTDIR = "$$PWD/../$$TARGET"
-        QMAKE_POST_LINK += windeployqt --no-translations $$DESTDIR
-    }
-}
+#win32: {
+#    CONFIG(release,debug|release) {
+#        QMAKE_POST_LINK += windeployqt --no-translations $$DESTDIR
+#    }
+#}
 
 SOURCES += main.cpp\
         mainwindow.cpp \

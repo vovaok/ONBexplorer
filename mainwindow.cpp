@@ -461,7 +461,12 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
             ObjectInfo *info = dev->objectInfo(i);
             mObjTable->setItem(i, 0, new QTableWidgetItem(info->name()));
             mObjTable->setItem(i, 1, new QTableWidgetItem("x3"));
-            mObjTable->setItem(i, 2, new QTableWidgetItem(QMetaType::typeName(info->type())));
+            QString typnam = QMetaType::typeName(info->type());
+            if (typnam == "QString")
+                typnam = "string";
+            else if (typnam == "QByteArray")
+                typnam = "common";
+            mObjTable->setItem(i, 2, new QTableWidgetItem(typnam));
             QString flags = "---hsrwv";
             unsigned char fla = info->flags();
             for (int j=0; j<8; j++)
@@ -489,7 +494,10 @@ void MainWindow::onCellChanged(int row, int col)
         ObjnetDevice *dev = master->devices().at(curdev);
         ObjectInfo *info = dev->objectInfo(row);
         QVariant val = mObjTable->item(row, col)->text();
-        val.convert(info->type());
+        if (info->type() == ObjectInfo::Common)
+            val = QByteArray::fromHex(val.toByteArray());
+        else
+            val.convert(info->type());
         info->fromVariant(val);
         dev->sendObject(info->name());
     }
