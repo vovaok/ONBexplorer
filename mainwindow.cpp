@@ -7,8 +7,29 @@ MainWindow::MainWindow(QWidget *parent) :
     sent(0),
     received(0)
 {
+
+//    qDebug() << "-----------------";
+//    qDebug() << typeid(void).name(); // v
+//    qDebug() << typeid(bool).name(); // b
+//    qDebug() << typeid(int).name(); // i
+//    qDebug() << typeid(unsigned int).name(); // j
+//    qDebug() << typeid(long long).name(); // x
+//    qDebug() << typeid(unsigned long long).name(); // y
+//    qDebug() << typeid(double).name(); // d
+//    qDebug() << typeid(long).name(); // l
+//    qDebug() << typeid(short).name(); // s
+//    qDebug() << typeid(char).name(); // c
+//    qDebug() << typeid(unsigned long).name(); // m
+//    qDebug() << typeid(unsigned short).name(); // t
+//    qDebug() << typeid(unsigned char).name(); // h
+//    qDebug() << typeid(float).name(); // f
+//    qDebug() << typeid(signed char).name(); // a
+//    qDebug() << typeid(string).name(); // Ss
+//    qDebug() << "-----------------";
+
+
     ui->setupUi(this);
-    resize(32, 500);
+//    resize(800, 500);
 
     uart = new QSerialPort();
     uart->setBaudRate(1000000);
@@ -30,7 +51,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //ui->mainToolBar->addWidget(can);
 
 //    master = new ObjnetMaster(new SerialCanInterface(can));
-    master = new ObjnetMaster(new UsbHidOnbInterface(new UsbHid(0x0bad, 0xcafe, this)));
+    master = new ObjnetMaster(new UsbHidOnbInterface(new UsbHidThread(0x0bad, 0xcafe, this)));
 //    onb << new ObjnetVirtualInterface("main");
 //    master = new ObjnetMaster(onb.last());
 //    master->setName("main");
@@ -180,6 +201,25 @@ MainWindow::MainWindow(QWidget *parent) :
     mTree->setColumnWidth(2, 40);
     mTree->setColumnWidth(3, 70);
     mTree->setIndentation(10);
+    connect(mTree, SIGNAL(itemClicked(QTreeWidgetItem*,int)), SLOT(onItemClick(QTreeWidgetItem*,int)));
+
+    mInfoBox = new QGroupBox("Device info");
+    QFormLayout *gblay = new QFormLayout;
+    QStringList editnames;
+    editnames << "Net address" << "Class ID" << "Name" << "Full name" << "Serial" << "Version" << "Build date" << "CPU info" << "Burn count";
+    foreach (QString s, editnames)
+    {
+        QLineEdit *ed = new QLineEdit;
+        ed->setReadOnly(true);
+        ed->setMinimumWidth(200);
+        mEdits[s] = ed;
+        gblay->addRow(s, ed);
+    }
+    mInfoBox->setLayout(gblay);
+
+    mObjTable = new QTableWidget(1, 2);
+    mObjTable->setColumnWidth(1, 150);
+    connect(mObjTable, SIGNAL(cellChanged(int,int)), SLOT(onCellChanged(int,int)));
 
     // ONLY IF ONBVS USED!!
     QStringList strings;
@@ -221,6 +261,8 @@ MainWindow::MainWindow(QWidget *parent) :
     glay->addWidget(outBox, 0, 1);
     glay->addWidget(inBox, 1, 1);
     glay->addWidget(editLog, 2, 1);
+    glay->addWidget(mObjTable, 0, 2, 2, 1);
+    glay->addWidget(mInfoBox, 2, 2);
     ui->centralWidget->setLayout(glay);
 
     QTimer *timer = new QTimer(this);
@@ -387,6 +429,96 @@ void MainWindow::onBtnProto()
         can->changeProtocolVersion(SerialCan::protoExtended);
     }
 }
+
+void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
+{
+    Q_UNUSED(column);
+    mObjTable->clear();
+    mObjTable->setRowCount(0);
+    QVariant v = item->data(0, Qt::UserRole);
+    ObjnetDevice *dev = reinterpret_cast<ObjnetDevice*>(v.toInt());
+    if (dev)
+    {
+        curdev = dev->netAddress();
+
+        mInfoBox->setTitle("Device info: " + dev->name());
+        mEdits["Net address"]->setText(QString::number(dev->netAddress()));
+        mEdits["Class ID"]->setText(QString().sprintf("0x%08X", (unsigned int)dev->classId()));
+        mEdits["Name"]->setText(dev->name());
+        mEdits["Full name"]->setText(dev->fullName());
+        mEdits["Serial"]->setText(QString().sprintf("0x%08X", (unsigned int)dev->serial()));
+        mEdits["Version"]->setText(dev->versionString());
+        mEdits["Build date"]->setText(dev->buildDate());
+        mEdits["CPU info"]->setText(dev->cpuInfo());
+        mEdits["Burn count"]->setText(QString().sprintf("%d", dev->burnCount()));
+
+        int cnt = dev->objectCount();
+        mObjTable->setColumnCount(4);
+        mObjTable->setRowCount(cnt);
+        mObjTable->blockSignals(true);
+        for (int i=0; i<cnt; i++)
+        {
+            ObjectInfo *info = dev->objectInfo(i);
+            mObjTable->setItem(i, 0, new QTableWidgetItem(info->name()));
+            mObjTable->setItem(i, 1, new QTableWidgetItem("x3"));
+            mObjTable->setItem(i, 2, new QTableWidgetItem(QMetaType::typeName(info->type())));
+            QString flags = "---hsrwv";
+            unsigned char fla = info->flags();
+            for (int j=0; j<8; j++)
+                if (!(fla & (1<<j)))
+                    flags[7-j] = '-';
+            mObjTable->setItem(i, 3, new QTableWidgetItem(flags));
+            dev->requestObject(info->name());
+        }
+        mObjTable->blockSignals(false);
+    }
+    else
+    {
+        mInfoBox->setTitle("Device info");
+        foreach (QLineEdit *ed, mEdits)
+            ed->clear();
+    }
+}
+
+void MainWindow::onCellChanged(int row, int col)
+{
+    if (col != 1)
+        return;
+    if (master->devices().count(curdev))
+    {
+        ObjnetDevice *dev = master->devices().at(curdev);
+        ObjectInfo *info = dev->objectInfo(row);
+        QVariant val = mObjTable->item(row, col)->text();
+        val.convert(info->type());
+        info->fromVariant(val);
+        dev->sendObject(info->name());
+    }
+}
+
+void MainWindow::onObjectReceive(QString name, QVariant value)
+{
+    //qDebug() << "[MainWindow] object received:" << name << "=" << value;
+    for (int i=0; i<mObjTable->rowCount(); i++)
+    {
+        QString nm = mObjTable->item(i, 0)->text();
+        if (nm == name)
+        {
+            QString val;
+#undef ByteArray
+            if (value.type() == QVariant::ByteArray)
+                val = value.toByteArray().toHex();
+            else// if (value.type() == QVariant::String)
+            {
+                if (value.type() == QMetaType::UChar)
+                    value = value.toInt();
+                val = value.toString();
+            }
+            mObjTable->blockSignals(true);
+            mObjTable->item(i, 1)->setText(val);
+            mObjTable->blockSignals(false);
+        }
+    }
+}
 //---------------------------------------------------------------------------
 
 void MainWindow::onBoardConnect()
@@ -419,10 +551,21 @@ void MainWindow::onTimer()
 {
 //    master->task();
 
+
+    status->setText(QString::number(mAdcValue));
+    status2->setText(strtest);
+
     if (master->devices().count(curdev))
     {
-        const ObjnetDevice *dev = master->devices().at(curdev);
-        setWindowTitle(QString::fromStdString(dev->fullName()));
+        ObjnetDevice *dev = master->devices().at(curdev);
+        for (int i=0; i<dev->objectCount(); i++)
+        {
+            ObjectInfo *info = dev->objectInfo(i);
+            if (info->flags() & ObjectInfo::Volatile)
+                dev->requestObject(info->name());
+        }
+        //dev->sendObject("testVar");
+        setWindowTitle(dev->fullName());
     }
 }
 //---------------------------------------------------------------------------
@@ -461,6 +604,18 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
             //if (i == 1)
                 strings << QString::number(netAddress);
             QTreeWidgetItem *item = new QTreeWidgetItem(strings);
+
+            ObjnetDevice *dev = master->device(netAddress);
+            connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
+            if (dev->bindVariable("adc", mAdcValue))
+                qDebug() << "variable 'adc' binded";
+            else
+                qDebug() << "type mismatch while binding variable 'adc'";
+            dev->bindVariable("testString", strtest);
+            dev->bindVariable("testVar", testVar);
+
+            int ptr = reinterpret_cast<int>(dev);
+            item->setData(0, Qt::UserRole, ptr);
             parent->addChild(item);
             mItems[netAddress] = item;
             item->setExpanded(true);

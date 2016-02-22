@@ -38,6 +38,9 @@ private:
     QLabel *status, *status2;
     QTreeWidget *mTree;
     QMap<unsigned char, QTreeWidgetItem*> mItems;
+    QGroupBox *mInfoBox;//, *mObjBox;
+    QMap<QString, QLineEdit*> mEdits;
+    QTableWidget *mObjTable;
 
     QComboBox *mPorts;
 
@@ -47,6 +50,10 @@ private:
     SerialCan *can;
     ObjnetMaster *master;
     unsigned char curdev;
+
+    unsigned short mAdcValue;
+    QString strtest;
+    int testVar;
 
 
     ObjnetVirtualServer *onbvs;
@@ -59,6 +66,10 @@ private slots:
     void onBtn();
     void onBtn2();
     void onBtnProto();
+    void onItemClick(QTreeWidgetItem *item, int column);
+    void onCellChanged(int row, int col);
+    void onObjectReceive(QString name, QVariant value);
+
     void onMessage(ulong id, QByteArray &data);
     void onMessageSent(ulong id, QByteArray &data);
 

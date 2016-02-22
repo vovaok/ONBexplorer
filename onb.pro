@@ -13,6 +13,11 @@ COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/commlib/commlib.pri)
 include($$COMPONENTS/usbhid/usbhid.pri)
 
+PROJ_DIR = d:/projects
+OBJNET_DIR = $$PROJ_DIR/iar/components/stm32++/src/objnet
+
+INCLUDEPATH += $$OBJNET_DIR
+
 win32: {
     CONFIG(release,debug|release) {
         DESTDIR = "$$PWD/../$$TARGET"
@@ -22,27 +27,29 @@ win32: {
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    objnetCommonNode.cpp \
-    objnetmaster.cpp \
-    objnetInterface.cpp \
-    objnetdevice.cpp \
+    $$OBJNET_DIR/objnetCommonNode.cpp \
+    $$OBJNET_DIR/objnetmaster.cpp \
+    $$OBJNET_DIR/objnetInterface.cpp \
+    $$OBJNET_DIR/objnetdevice.cpp \
     serialcaninterface.cpp \
     objnetvirtualinterface.cpp \
     objnetvirtualserver.cpp \
-    objnetnode.cpp \
-    usbhidonbinterface.cpp
+    $$OBJNET_DIR/objnetnode.cpp \
+    usbhidonbinterface.cpp \
+    $$OBJNET_DIR/objectinfo.cpp
 
 HEADERS  += mainwindow.h \
-    objnetCommonNode.h \
-    objnetmaster.h \
-    objnetInterface.h \
-    objnetmsg.h \
-    objnetcommon.h \
-    objnetdevice.h \
+    $$OBJNET_DIR/objnetCommonNode.h \
+    $$OBJNET_DIR/objnetmaster.h \
+    $$OBJNET_DIR/objnetInterface.h \
+    $$OBJNET_DIR/objnetmsg.h \
+    $$OBJNET_DIR/objnetcommon.h \
+    $$OBJNET_DIR/objnetdevice.h \
     serialcaninterface.h \
     objnetvirtualinterface.h \
     objnetvirtualserver.h \
-    objnetnode.h \
-    usbhidonbinterface.h
+    $$OBJNET_DIR/objnetnode.h \
+    usbhidonbinterface.h \
+    $$OBJNET_DIR/objectinfo.h
 
 FORMS    += mainwindow.ui
