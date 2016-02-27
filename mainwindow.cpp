@@ -459,21 +459,52 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         for (int i=0; i<cnt; i++)
         {
             ObjectInfo *info = dev->objectInfo(i);
-            mObjTable->setItem(i, 0, new QTableWidgetItem(info->name()));
-            mObjTable->setItem(i, 1, new QTableWidgetItem("x3"));
-            QString typnam = QMetaType::typeName(info->type());
-            if (typnam == "QString")
-                typnam = "string";
-            else if (typnam == "QByteArray")
-                typnam = "common";
-            mObjTable->setItem(i, 2, new QTableWidgetItem(typnam));
-            QString flags = "---hsrwv";
+            QString name = info->name();
+            mObjTable->setItem(i, 1, new QTableWidgetItem("n/a"));
+            QString wt = QMetaType::typeName(info->wType());
+            if (wt == "QString")
+                wt = "string";
+            else if (wt == "QByteArray")
+                wt = "common";
+            QString rt = QMetaType::typeName(info->rType());
+            if (rt == "QString")
+                rt = "string";
+            else if (rt == "QByteArray")
+                rt = "common";
             unsigned char fla = info->flags();
+            QString typnam;
+
+
+            if (fla & ObjectInfo::Function)
+            {
+                typnam = wt + "(" + rt + ")";
+                mObjTable->setItem(i, 0, new QTableWidgetItem(name));
+                QPushButton *btn = new QPushButton(name);
+                mObjTable->setCellWidget(i, 0, btn);
+                if (fla & ObjectInfo::Read) // na samom dele Write, no tut naoborot)
+                    connect(btn, &QPushButton::clicked, [dev, name](){dev->sendObject(name);});
+                else
+                    connect(btn, &QPushButton::clicked, [dev, name](){dev->requestObject(name);});
+            }
+            else
+            {
+                if (fla & ObjectInfo::Dual)
+                    typnam = "r:"+wt+"/w:"+rt;
+                else if (fla & ObjectInfo::Read)
+                    typnam = rt;
+                else if (fla & ObjectInfo::Write)
+                    typnam = wt;
+
+                mObjTable->setItem(i, 0, new QTableWidgetItem(name));
+                dev->requestObject(name);
+            }
+
+            mObjTable->setItem(i, 2, new QTableWidgetItem(typnam));
+            QString flags = "-fdhsrwv";
             for (int j=0; j<8; j++)
                 if (!(fla & (1<<j)))
                     flags[7-j] = '-';
             mObjTable->setItem(i, 3, new QTableWidgetItem(flags));
-            dev->requestObject(info->name());
         }
         mObjTable->blockSignals(false);
     }
@@ -494,11 +525,13 @@ void MainWindow::onCellChanged(int row, int col)
         ObjnetDevice *dev = master->devices().at(curdev);
         ObjectInfo *info = dev->objectInfo(row);
         QVariant val = mObjTable->item(row, col)->text();
-        if (info->type() == ObjectInfo::Common)
+        if (info->rType() == ObjectInfo::Common)
             val = QByteArray::fromHex(val.toByteArray());
         else
-            val.convert(info->type());
+            val.convert(info->rType());
         info->fromVariant(val);
+        if (info->flags() & ObjectInfo::Function)
+            return;
         dev->sendObject(info->name());
     }
 }
@@ -513,11 +546,13 @@ void MainWindow::onObjectReceive(QString name, QVariant value)
         {
             QString val;
 #undef ByteArray
+            if (!value.isValid())
+                continue;
             if (value.type() == QVariant::ByteArray)
                 val = value.toByteArray().toHex();
             else// if (value.type() == QVariant::String)
             {
-                if (value.type() == QMetaType::UChar)
+                if (static_cast<QMetaType::Type>(value.type()) == QMetaType::UChar)
                     value = value.toInt();
                 val = value.toString();
             }

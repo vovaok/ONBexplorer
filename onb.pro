@@ -10,6 +10,8 @@ TARGET = onb
 TEMPLATE = app
 DESTDIR = $$PWD/$$TARGET
 
+CONFIG += c++11
+
 COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/commlib/commlib.pri)
 include($$COMPONENTS/usbhid/usbhid.pri)
