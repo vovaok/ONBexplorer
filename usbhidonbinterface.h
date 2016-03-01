@@ -10,11 +10,12 @@ namespace Objnet
 
 class UsbHidOnbInterface : public ObjnetInterface
 {
+    Q_OBJECT
+
 private:
     UsbHidThread *usb;
     unsigned char mReadSeqNo, mSeqNo;
     bool mFirstTime;
-    QElapsedTimer mEtimer;
 
 public:
     explicit UsbHidOnbInterface(UsbHidThread *usbhid);
@@ -24,8 +25,13 @@ public:
     bool read(CommonMessage &msg);
     void flush();
 
+    int availableWriteCount();
+
     int addFilter(unsigned long id, unsigned long mask=0xFFFFFFFF);
     void removeFilter(int number);
+
+signals:
+    void message(QString, CommonMessage&);
 
 private slots:
     void onReportReceive(const QByteArray &ba);

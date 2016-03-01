@@ -55,6 +55,7 @@ private:
     QString strtest;
     int testVar;
 
+    QElapsedTimer mEtimer;
 
     ObjnetVirtualServer *onbvs;
     QVector<ObjnetVirtualInterface*> onb;
@@ -91,6 +92,8 @@ private slots:
     void onPortChanged(QString portname);
 
     void upgrade();
+
+    void onBindTest(int var);
 };
 
 #endif // MAINWINDOW_H

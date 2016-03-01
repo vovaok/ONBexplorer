@@ -27,6 +27,8 @@ public:
     bool read(CommonMessage &msg);
     void flush();
 
+    int availableWriteCount();
+
     int addFilter(unsigned long id, unsigned long mask=0xFFFFFFFF);
     void removeFilter(int number);
     

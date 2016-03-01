@@ -52,6 +52,11 @@ void SerialCanInterface::flush()
     mCan->clearBoardBuffer();
 }
 
+int SerialCanInterface::availableWriteCount()
+{
+    return 256;
+}
+
 int SerialCanInterface::addFilter(unsigned long id, unsigned long mask)
 {
     Filter f;

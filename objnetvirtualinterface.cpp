@@ -41,6 +41,11 @@ void ObjnetVirtualInterface::flush()
     mSocket->flush();
 }
 
+int ObjnetVirtualInterface::availableWriteCount()
+{
+    return 256;
+}
+
 int ObjnetVirtualInterface::addFilter(unsigned long id, unsigned long mask)
 {
     Filter f;
