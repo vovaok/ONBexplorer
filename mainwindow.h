@@ -14,6 +14,9 @@
 
 #include "usbhidonbinterface.h"
 
+#include "panel3d.h"
+#include "graph2d.h"
+
 namespace Ui {
 class MainWindow;
 }
@@ -42,6 +45,9 @@ private:
     QMap<QString, QLineEdit*> mEdits;
     QTableWidget *mObjTable;
 
+    Graph2D *mGraph;
+    QPanel3D *panel3d;
+
     QComboBox *mPorts;
 
     int sent, received;
@@ -54,6 +60,9 @@ private:
     unsigned short mAdcValue;
     QString strtest;
     int testVar;
+    float tempEnc1[8];
+    float tempEnc2[8];
+    float tempEnc3[8];
 
 
     ObjnetVirtualServer *onbvs;

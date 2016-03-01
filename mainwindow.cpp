@@ -268,6 +268,47 @@ MainWindow::MainWindow(QWidget *parent) :
     QTimer *timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(onTimer()));
     timer->start(30);
+
+
+
+
+    QVBoxLayout *vl2 = new QVBoxLayout();
+    QWidget *widget =  new QWidget(this,Qt::Window|Qt::Tool);
+    widget->show();
+
+
+    panel3d = new QPanel3D(widget);
+    panel3d->show();
+
+    mGraph = new Graph2D(panel3d->root());
+
+
+
+
+
+
+    panel3d->camera()->setPosition(QVector3D(0, 0, 10));
+    panel3d->camera()->setDirection(QVector3D(0, 0, -1));
+    panel3d->camera()->setTopDir(QVector3D(0, 1, 0));
+    panel3d->camera()->setOrtho(true);
+    panel3d->camera()->setFixedViewportSize(QSizeF(110, 110));
+    panel3d->camera()->setFixedViewport(true);
+    panel3d->setBackColor(Qt::white);
+    panel3d->setLightingEnabled(false);
+
+    mGraph->setSize(100, 100);
+    mGraph->setPosition(-50, -50, 0);
+    mGraph->setBounds(QRectF(0, 0, 0, 0));
+
+    mGraph->setLabelX("angle1");
+    mGraph->setLabelX("angle2");
+    mGraph->setLabelX("angle3");
+    mGraph->setLabelX("angle4");
+
+    vl2->addWidget(panel3d);
+    widget->setLayout(vl2);
+
+
 }
 
 MainWindow::~MainWindow()
@@ -609,7 +650,17 @@ void MainWindow::onTimer()
         }
         //dev->sendObject("testVar");
         setWindowTitle(dev->fullName());
-    }
+     }
+
+
+         panel3d->updateGL();
+//static int time =0;
+//         mGraph->addPoint("angle1", time, tempEnc1[4]);
+//          mGraph->addPoint("angle2", time, tempEnc1[5]);
+//           mGraph->addPoint("angle3", time, tempEnc1[6]);
+//            mGraph->addPoint("angle4", time, tempEnc1[7]);
+
+//            time++;
 }
 //---------------------------------------------------------------------------
 
@@ -656,6 +707,10 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
                 qDebug() << "type mismatch while binding variable 'adc'";
             dev->bindVariable("testString", strtest);
             dev->bindVariable("testVar", testVar);
+            dev->bindVariable("value",tempEnc1);
+            dev->bindVariable("value",tempEnc2);
+            dev->bindVariable("value",tempEnc3);
+
 
             int ptr = reinterpret_cast<int>(dev);
             item->setData(0, Qt::UserRole, ptr);

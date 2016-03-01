@@ -15,6 +15,7 @@ CONFIG += c++11
 COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/commlib/commlib.pri)
 include($$COMPONENTS/usbhid/usbhid.pri)
+include ($$COMPONENTS/panel3d/qpanel3d.pri)
 
 PROJ_DIR = d:/projects
 OBJNET_DIR = $$PROJ_DIR/iar/components/stm32++/src/objnet
