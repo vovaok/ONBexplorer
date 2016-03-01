@@ -32,6 +32,15 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 //    resize(800, 500);
 
+    for(int i =0;i<8;i++)
+    {
+        tempEnc1[i]=0;
+        tempEnc2[i]=0;
+        tempEnc3[i]=0;
+
+    }
+
+
     uart = new QSerialPort();
     uart->setBaudRate(1000000);
     uart->setParity(QSerialPort::EvenParity);
@@ -310,6 +319,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     vl2->addWidget(panel3d);
     widget->setLayout(vl2);
+
 
 
 }
@@ -660,13 +670,13 @@ void MainWindow::onTimer()
 
 
          panel3d->updateGL();
-//static int time =0;
-//         mGraph->addPoint("angle1", time, tempEnc1[4]);
-//          mGraph->addPoint("angle2", time, tempEnc1[5]);
-//           mGraph->addPoint("angle3", time, tempEnc1[6]);
-//            mGraph->addPoint("angle4", time, tempEnc1[7]);
+static float time =0;
+         mGraph->addPoint("angle1", time, tempEnc1[4]);
+          mGraph->addPoint("angle2", time, tempEnc1[5]);
+           mGraph->addPoint("angle3", time, tempEnc1[6]);
+            mGraph->addPoint("angle4", time, tempEnc1[7]);
 
-//            time++;
+            time+=0.03;
 }
 //---------------------------------------------------------------------------
 
@@ -713,9 +723,9 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
                 qDebug() << "type mismatch while binding variable 'adc'";
             dev->bindVariable("testString", strtest);
             dev->bindVariable("testVar", testVar);
-            dev->bindVariable("value",tempEnc1);
-            dev->bindVariable("value",tempEnc2);
-            dev->bindVariable("value",tempEnc3);
+            dev->bindVariable("tempEnc1",tempEnc1);
+            dev->bindVariable("tempEnc2",tempEnc2);
+            dev->bindVariable("tempEnc3",tempEnc3);
 
 
             int ptr = reinterpret_cast<int>(dev);
