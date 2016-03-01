@@ -21,6 +21,7 @@ PROJ_DIR = d:/projects
 OBJNET_DIR = $$PROJ_DIR/iar/components/stm32++/src/objnet
 
 INCLUDEPATH += $$OBJNET_DIR
+INCLUDEPATH += $$OBJNET_DIR/../core
 
 #win32: {
 #    CONFIG(release,debug|release) {
@@ -53,6 +54,8 @@ HEADERS  += mainwindow.h \
     objnetvirtualserver.h \
     $$OBJNET_DIR/objnetnode.h \
     usbhidonbinterface.h \
-    $$OBJNET_DIR/objectinfo.h
+    $$OBJNET_DIR/objectinfo.h \
+    $$OBJNET_DIR/../core/closure.h \
+    $$OBJNET_DIR/../core/closure_impl.h
 
 FORMS    += mainwindow.ui

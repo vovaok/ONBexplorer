@@ -17,7 +17,6 @@ UsbHidOnbInterface::UsbHidOnbInterface(UsbHidThread *usbhid) :
 //    usb->availableDevices();
 //    usb->setDevice();
 //    usb->open();
-    mEtimer.start();
 }
 
 UsbHidOnbInterface::~UsbHidOnbInterface()
@@ -65,7 +64,7 @@ bool UsbHidOnbInterface::write(Objnet::CommonMessage &msg)
         s.sprintf("%02X ", byte);
         strdata += s;
     }
-//    qDebug() << "[" << mEtimer.elapsed() << "] >>" << QString().sprintf("(0x%08x)", id) << strdata;
+    emit message("usbonb", msg); // for debug purposes
     return true;
 }
 
@@ -99,11 +98,16 @@ bool UsbHidOnbInterface::read(Objnet::CommonMessage &msg)
             s.sprintf("%02X ", byte);
             strdata += s;
         }
-        //qDebug() << "[" << mEtimer.elapsed() << "] <<" << QString().sprintf("(0x%08x)", id) << strdata;
+        emit message("usbonb", msg); // for debug purposes
     }
 //    else
 //        qDebug() << "ne success(";
     return success;
+}
+
+int UsbHidOnbInterface::availableWriteCount()
+{
+    return 256;
 }
 
 void UsbHidOnbInterface::flush()

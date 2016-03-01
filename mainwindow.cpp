@@ -5,7 +5,8 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
     sent(0),
-    received(0)
+    received(0),
+    curdev(0)
 {
 
 //    qDebug() << "-----------------";
@@ -51,7 +52,9 @@ MainWindow::MainWindow(QWidget *parent) :
     //ui->mainToolBar->addWidget(can);
 
 //    master = new ObjnetMaster(new SerialCanInterface(can));
-    master = new ObjnetMaster(new UsbHidOnbInterface(new UsbHidThread(0x0bad, 0xcafe, this)));
+    UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbHidThread(0x0bad, 0xcafe, this));
+    connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+    master = new ObjnetMaster(usbonb);
 //    onb << new ObjnetVirtualInterface("main");
 //    master = new ObjnetMaster(onb.last());
 //    master->setName("main");
@@ -269,7 +272,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(timer, SIGNAL(timeout()), this, SLOT(onTimer()));
     timer->start(30);
 
-
+    mEtimer.start();
 
 
     QVBoxLayout *vl2 = new QVBoxLayout();
@@ -418,7 +421,9 @@ void MainWindow::logMessage(ulong id, QByteArray &data, bool dir)
 
 void MainWindow::logMessage(QString netname, CommonMessage &msg)
 {
-    QString text = netname + ": ";
+    QString text;
+    text.sprintf("[%d] ", mEtimer.elapsed());
+    text += netname + ": ";
     QString sid = QString().sprintf("%08X", (unsigned int)msg.rawId());
     if (msg.isGlobal())
     {
@@ -551,6 +556,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
     }
     else
     {
+        curdev = 0;
         mInfoBox->setTitle("Device info");
         foreach (QLineEdit *ed, mEdits)
             ed->clear();
@@ -811,5 +817,10 @@ void MainWindow::upgrade()
     master->sendGlobalMessage(aidUpgradeData);
 
     master->sendGlobalMessage(aidUpgradeEnd);
+}
+
+void MainWindow::onBindTest(int var)
+{
+    qDebug() << "binded method called (!!) with var = " << var;
 }
 //---------------------------------------------------------------------------
