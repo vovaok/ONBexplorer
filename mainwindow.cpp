@@ -32,6 +32,15 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 //    resize(800, 500);
 
+    for(int i =0;i<8;i++)
+    {
+        tempEnc1[i]=0;
+        tempEnc2[i]=0;
+        tempEnc3[i]=0;
+
+    }
+
+
     uart = new QSerialPort();
     uart->setBaudRate(1000000);
     uart->setParity(QSerialPort::EvenParity);
@@ -278,6 +287,46 @@ MainWindow::MainWindow(QWidget *parent) :
     timer->start(30);
 
     mEtimer.start();
+
+
+    QVBoxLayout *vl2 = new QVBoxLayout();
+    QWidget *widget =  new QWidget(this,Qt::Window|Qt::Tool);
+    widget->show();
+
+
+    panel3d = new QPanel3D(widget);
+    panel3d->show();
+
+    mGraph = new Graph2D(panel3d->root());
+
+
+
+
+
+
+    panel3d->camera()->setPosition(QVector3D(0, 0, 10));
+    panel3d->camera()->setDirection(QVector3D(0, 0, -1));
+    panel3d->camera()->setTopDir(QVector3D(0, 1, 0));
+    panel3d->camera()->setOrtho(true);
+    panel3d->camera()->setFixedViewportSize(QSizeF(110, 110));
+    panel3d->camera()->setFixedViewport(true);
+    panel3d->setBackColor(Qt::white);
+    panel3d->setLightingEnabled(false);
+
+    mGraph->setSize(100, 100);
+    mGraph->setPosition(-50, -50, 0);
+    mGraph->setBounds(QRectF(0, 0, 0, 0));
+
+    mGraph->setLabelX("angle1");
+    mGraph->setLabelX("angle2");
+    mGraph->setLabelX("angle3");
+    mGraph->setLabelX("angle4");
+
+    vl2->addWidget(panel3d);
+    widget->setLayout(vl2);
+
+
+
 }
 
 MainWindow::~MainWindow()
@@ -622,7 +671,17 @@ void MainWindow::onTimer()
         }
         //dev->sendObject("testVar");
         setWindowTitle(dev->fullName());
-    }
+     }
+
+
+         panel3d->updateGL();
+static float time =0;
+         mGraph->addPoint("angle1", time, tempEnc1[4]);
+          mGraph->addPoint("angle2", time, tempEnc1[5]);
+           mGraph->addPoint("angle3", time, tempEnc1[6]);
+            mGraph->addPoint("angle4", time, tempEnc1[7]);
+
+            time+=0.03;
 }
 //---------------------------------------------------------------------------
 
@@ -669,7 +728,10 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
                 qDebug() << "type mismatch while binding variable 'adc'";
             dev->bindVariable("testString", strtest);
             dev->bindVariable("testVar", testVar);
-            //dev->bindMethod("var2", this, &MainWindow::onBindTest);
+            dev->bindVariable("tempEnc1",tempEnc1);
+            dev->bindVariable("tempEnc2",tempEnc2);
+            dev->bindVariable("tempEnc3",tempEnc3);
+
 
             int ptr = reinterpret_cast<int>(dev);
             item->setData(0, Qt::UserRole, ptr);
