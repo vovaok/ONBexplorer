@@ -2,6 +2,7 @@
 #define OBJNETVIRTUALINTERFACE_H
 
 #include "objnetInterface.h"
+#include "objnetvirtualserver.h"
 #include <QTcpSocket>
 #include <QHostAddress>
 
@@ -20,10 +21,13 @@ private:
     QQueue<CommonMessage> mRxQueue;
     bool mActive;
 
+    OviCodec mCodec;
+
 private slots:
     void onSocketConnected();
     void onSocketDisconnected();
     void onSocketRead();
+    void msgReceived(const QByteArray &ba);
 
 public:
     ObjnetVirtualInterface(QString netname);

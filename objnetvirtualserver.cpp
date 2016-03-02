@@ -1,11 +1,85 @@
 #include "objnetvirtualserver.h"
 
+OviCodec::OviCodec() :
+    cs(0), esc(0), cmd_acc(0)
+{
+}
+
+QByteArray OviCodec::encode(const QByteArray &ba)
+{
+    QByteArray out;
+    char cs = 0;
+    out.append('{');
+    int sz = ba.size();
+    for (char i=0; i<=sz; i++)
+    {
+        char b = i<sz? ba[i]: cs;
+        cs -= b;
+        switch (b)
+        {
+            case '{':
+            case '}':
+            case '\\':
+                out.append('\\');
+                b ^= 0x20;
+        }
+        out.append(b);
+    }
+    out.append('}');
+    return out;
+}
+
+QByteArray OviCodec::decode(QByteArray &ba)
+{
+    for (int i=0; i<ba.size(); i++)
+    {
+        char byte = ba[i];
+        switch (byte)
+        {
+          case '\\':
+            esc = 1;
+            break;
+
+          case '{':
+            mBuffer.clear();
+            cs = 0;
+            esc = 0;
+            cmd_acc = 1;
+            break;
+
+          case '}':
+            if (cmd_acc)
+            {
+                if (!cs)
+                {
+                    mBuffer.resize(mBuffer.size()-1); // remove checksum
+                    ba.remove(0, i+1);
+                    return mBuffer;
+                }
+                cmd_acc = 0;
+            }
+            break;
+
+          default:
+            if (!cmd_acc)
+                break;
+            if (esc)
+                byte ^= 0x20;
+            esc = 0;
+            mBuffer.append(byte);
+            cs += byte;
+        }
+    }
+    return QByteArray();
+}
+//---------------------------------------------------------
+//---------------------------------------------------------
+
 ObjnetVirtualServer::ObjnetVirtualServer(QObject *parent) :
     QTcpServer(parent)
 {
     connect(this, SIGNAL(newConnection()), SLOT(clientConnected()));
-    mTimer.start();
-    listen(QHostAddress::Any, 23230);
+    listen(QHostAddress::Any, 51966);
 }
 
 void ObjnetVirtualServer::clientConnected()
@@ -16,6 +90,9 @@ void ObjnetVirtualServer::clientConnected()
         connect(socket, SIGNAL(readyRead()), SLOT(clientRead()));
         connect(socket, SIGNAL(disconnected()), SLOT(clientDisconnected()));
         socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
+        qDebug() << "[ONB server] client connected: " << socket->peerAddress().toString();
+        if (socket->peerAddress() != QHostAddress("127.0.0.1"))
+            mNets.insert("main", socket);
     }
 }
 
@@ -23,6 +100,7 @@ void ObjnetVirtualServer::clientConnected()
 void ObjnetVirtualServer::clientDisconnected()
 {
     QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
+    qDebug() << "[ONB server] client disconnected: " << socket->peerAddress().toString();
     foreach (QString key, mNets.keys())
         mNets.remove(key, socket);
 }
@@ -30,13 +108,11 @@ void ObjnetVirtualServer::clientDisconnected()
 void ObjnetVirtualServer::clientRead()
 {
     QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
-    QByteArray ba = socket->read(1);
-    while (!ba.isEmpty())
+    QByteArray in = socket->readAll();
+    QByteArray ba;
+    while (!(ba=mCodec.decode(in)).isEmpty())
     {
-        int sz = ba[0];
-        ba = socket->read(sz);
-
-        unsigned long id = *reinterpret_cast<unsigned long*>(ba.data());
+        unsigned long id = *reinterpret_cast<const unsigned long*>(ba.data());
 
         QString netname;
         if (id == 0xff000000)
@@ -59,21 +135,16 @@ void ObjnetVirtualServer::clientRead()
             {
                 CommonMessage msg;
                 msg.setId(id);
-                QByteArray data = ba;
-                data.remove(0, 4);
-                msg.setData(data);
-                QString text = QString().sprintf("[%d]\t", (int)mTimer.elapsed()) + netname;
-                emit message(text, msg);
-
-                ba.prepend(ba.size());
+                msg.setData(QByteArray(ba.data()+4, ba.size()-4));
+                //qDebug() << "[" << socket->peerAddress() << "]" << QString().sprintf("0x%08x", id) << msg.data().toHex();
+                emit message(netname, msg);
 
                 foreach (QTcpSocket* sock, mNets.values(netname))
                 {
                     if (sock != socket)
-                        sock->write(ba);
+                        sock->write(mCodec.encode(ba));
                 }
             }
         }
-        ba = socket->read(1);
     }
 }

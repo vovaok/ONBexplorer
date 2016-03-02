@@ -12,7 +12,7 @@ ObjnetVirtualInterface::ObjnetVirtualInterface(QString netname) :
     connect(mSocket, SIGNAL(disconnected()), SLOT(onSocketDisconnected()));
     connect(mSocket, SIGNAL(readyRead()), SLOT(onSocketRead()));
     mSocket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-    //mSocket->connectToHost(QHostAddress::LocalHost, 23230);
+    //mSocket->connectToHost(QHostAddress::LocalHost, 51966);
 }
 //---------------------------------------------------------
 
@@ -22,9 +22,11 @@ bool ObjnetVirtualInterface::write(Objnet::CommonMessage &msg)
     unsigned long id = msg.rawId();
     ba.append(reinterpret_cast<const char*>(&id), 4);
     ba.append(msg.data());
-    ba.prepend(ba.size());
     if (mSocket->isOpen())
-        mSocket->write(ba);
+    {
+        QByteArray ba2 = mCodec.encode(ba);
+        mSocket->write(ba2);
+    }
     return true;
 }
 
@@ -67,7 +69,7 @@ void ObjnetVirtualInterface::setActive(bool enabled)
     {
         mActive = enabled;
         if (mActive)
-            mSocket->connectToHost(QHostAddress::LocalHost, 23230);
+            mSocket->connectToHost(QHostAddress::LocalHost, 51966);
         else
             mSocket->disconnectFromHost();
     }
@@ -81,7 +83,7 @@ void ObjnetVirtualInterface::onSocketConnected()
     ba.append(reinterpret_cast<const char*>(&id), 4);
     ba.append(mNetname.toLatin1());
     ba.prepend(ba.size());
-    mSocket->write(ba);
+//    mSocket->write(ba);
 }
 
 void ObjnetVirtualInterface::onSocketDisconnected()
@@ -91,35 +93,34 @@ void ObjnetVirtualInterface::onSocketDisconnected()
 
 void ObjnetVirtualInterface::onSocketRead()
 {
-    QByteArray ba = mSocket->read(1);
-    while (!ba.isEmpty())
+    QByteArray in = mSocket->readAll();
+    QByteArray ba;
+    while (!(ba=mCodec.decode(in)).isEmpty())
+        msgReceived(ba);
+}
+
+void ObjnetVirtualInterface::msgReceived(const QByteArray &ba)
+{
+    unsigned long id = *reinterpret_cast<const unsigned long*>(ba.data());
+
+    bool accept = false;
+    if (!mFilters.size())
+        accept = true;
+    foreach (Filter f, mFilters)
     {
-        int sz = ba[0];
-        ba = mSocket->read(sz);
-
-        unsigned long id = *reinterpret_cast<unsigned long*>(ba.data());
-
-        bool accept = false;
-        if (!mFilters.size())
+        if ((f.id & f.mask) == (id & f.mask))
+        {
             accept = true;
-        foreach (Filter f, mFilters)
-        {
-            if ((f.id & f.mask) == (id & f.mask))
-            {
-                accept = true;
-                break;
-            }
+            break;
         }
+    }
+    accept=true;
 
-        if (accept)
-        {
-            ba.remove(0, 4);
-            CommonMessage msg;
-            msg.setId(id);
-            msg.setData(ba);
-            mRxQueue << msg;
-        }
-
-        ba = mSocket->read(1);
+    if (accept)
+    {
+        CommonMessage msg;
+        msg.setId(id);
+        msg.setData(QByteArray(ba.data()+4, ba.size()-4));
+        mRxQueue << msg;
     }
 }

@@ -52,17 +52,22 @@ MainWindow::MainWindow(QWidget *parent) :
     //ui->mainToolBar->addWidget(can);
 
 //    master = new ObjnetMaster(new SerialCanInterface(can));
-    UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbHidThread(0x0bad, 0xcafe, this));
-    connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
-    master = new ObjnetMaster(usbonb);
-//    onb << new ObjnetVirtualInterface("main");
-//    master = new ObjnetMaster(onb.last());
-//    master->setName("main");
+
+//    UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbHidThread(0x0bad, 0xcafe, this));
+//    connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+//    master = new ObjnetMaster(usbonb);
+
+    onb << new ObjnetVirtualInterface("main");
+    master = new ObjnetMaster(onb.last());
+    master->setName("main");
+
     connect(master, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
     connect(master, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
     connect(master, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
     connect(master, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
     connect(master, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
+
+    onb.last()->setActive(true);
 
     onb << new ObjnetVirtualInterface("main");
     ObjnetNode *n1 = new ObjnetNode(onb.last());

@@ -8,13 +8,25 @@
 
 using namespace Objnet;
 
+class OviCodec
+{
+private:
+    QByteArray mBuffer;
+    unsigned char cs, esc, cmd_acc;
+
+public:
+    OviCodec();
+    QByteArray encode(const QByteArray &ba);
+    QByteArray decode(QByteArray &ba);
+};
+
 class ObjnetVirtualServer : public QTcpServer
 {
     Q_OBJECT
 
 private:
     QMultiHash<QString, QTcpSocket*> mNets;
-    QElapsedTimer mTimer;
+    OviCodec mCodec;
 
 public:
     explicit ObjnetVirtualServer(QObject *parent = 0);
