@@ -291,6 +291,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     QVBoxLayout *vl2 = new QVBoxLayout();
     QWidget *widget =  new QWidget(this,Qt::Window|Qt::Tool);
+    widget->setMinimumSize(400, 300);
     widget->show();
 
 
