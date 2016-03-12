@@ -6,7 +6,7 @@ ObjnetVirtualInterface::ObjnetVirtualInterface(QString netname) :
     mNetname(netname),
     mActive(false)
 {
-    mMaxFrameSize = 8;
+    mMaxFrameSize = 64;
     mSocket = new QTcpSocket(this);
     connect(mSocket, SIGNAL(connected()), SLOT(onSocketConnected()));
     connect(mSocket, SIGNAL(disconnected()), SLOT(onSocketDisconnected()));

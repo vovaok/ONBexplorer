@@ -8,7 +8,11 @@ QT       += core widgets network
 
 TARGET = onb
 TEMPLATE = app
-DESTDIR = $$PWD/$$TARGET
+
+CONFIG(release,debug|release) {
+    DESTDIR = $$PWD/$$TARGET
+}
+
 
 CONFIG += c++11
 
@@ -40,7 +44,8 @@ SOURCES += main.cpp\
     objnetvirtualserver.cpp \
     $$OBJNET_DIR/objnetnode.cpp \
     usbhidonbinterface.cpp \
-    $$OBJNET_DIR/objectinfo.cpp
+    $$OBJNET_DIR/objectinfo.cpp \
+    $$OBJNET_DIR/objnetmsg.cpp
 
 HEADERS  += mainwindow.h \
     $$OBJNET_DIR/objnetCommonNode.h \

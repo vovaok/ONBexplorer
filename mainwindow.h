@@ -26,19 +26,20 @@ using namespace Objnet;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-    
+
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
-    
+
 private:
     Ui::MainWindow *ui;
     QPushButton *btn, *btn2, *btnResetStat, *btnUpgrade;
     QPushButton *btnProto1, *btnProto2;
+    QPushButton *mOviServerBtn;
     QLineEdit *editId, *editData;
     QLineEdit *editIdIn, *editDataIn;
     QTextEdit *editLog;
-    QLabel *status, *status2;
+    QLabel *status, *status2, *status3;
     QTreeWidget *mTree;
     QMap<unsigned char, QTreeWidgetItem*> mItems;
     QGroupBox *mInfoBox;//, *mObjBox;
@@ -83,6 +84,7 @@ private slots:
     void onMessage(ulong id, QByteArray &data);
     void onMessageSent(ulong id, QByteArray &data);
 
+    void logMessage(QString message);
     void logMessage(QString netname, CommonMessage &msg);
 
     void onBoardConnect();
@@ -97,6 +99,8 @@ private slots:
     void onDevDisconnected(unsigned char netAddress);
     void onDevRemoved(unsigned char netAddress);
     void onServiceMessageAccepted(unsigned char netAddress, SvcOID oid, const QByteArray &data);
+
+    void onDevReady();
 
     void onPortChanged(QString portname);
 

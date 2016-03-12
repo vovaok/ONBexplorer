@@ -79,7 +79,6 @@ ObjnetVirtualServer::ObjnetVirtualServer(QObject *parent) :
     QTcpServer(parent)
 {
     connect(this, SIGNAL(newConnection()), SLOT(clientConnected()));
-    listen(QHostAddress::Any, 51966);
 }
 
 void ObjnetVirtualServer::clientConnected()
@@ -90,7 +89,7 @@ void ObjnetVirtualServer::clientConnected()
         connect(socket, SIGNAL(readyRead()), SLOT(clientRead()));
         connect(socket, SIGNAL(disconnected()), SLOT(clientDisconnected()));
         socket->setSocketOption(QAbstractSocket::LowDelayOption, 1);
-        qDebug() << "[ONB server] client connected: " << socket->peerAddress().toString();
+        emit message("[ONB server] client connected: " + socket->peerAddress().toString());
         if (socket->peerAddress() != QHostAddress("127.0.0.1"))
             mNets.insert("main", socket);
     }
@@ -100,15 +99,32 @@ void ObjnetVirtualServer::clientConnected()
 void ObjnetVirtualServer::clientDisconnected()
 {
     QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
-    qDebug() << "[ONB server] client disconnected: " << socket->peerAddress().toString();
+    emit message("[ONB server] client disconnected: " + socket->peerAddress().toString());
     foreach (QString key, mNets.keys())
         mNets.remove(key, socket);
+}
+
+void ObjnetVirtualServer::setEnabled(bool enabled)
+{
+    if (enabled && !isListening())
+    {
+        listen(QHostAddress::Any, 51966);
+        emit message("[ONB server] started");
+    }
+    else if (!enabled && isListening())
+    {
+        close();
+        emit message("[ONB server] stopped");
+    }
 }
 
 void ObjnetVirtualServer::clientRead()
 {
     QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
     QByteArray in = socket->readAll();
+    if (!isListening())
+        return;
+//    qDebug() << "[" << mTimer.elapsed() << "] size =" << in.size();
     QByteArray ba;
     while (!(ba=mCodec.decode(in)).isEmpty())
     {
@@ -136,7 +152,6 @@ void ObjnetVirtualServer::clientRead()
                 CommonMessage msg;
                 msg.setId(id);
                 msg.setData(QByteArray(ba.data()+4, ba.size()-4));
-                //qDebug() << "[" << socket->peerAddress() << "]" << QString().sprintf("0x%08x", id) << msg.data().toHex();
                 emit message(netname, msg);
 
                 foreach (QTcpSocket* sock, mNets.values(netname))

@@ -8,7 +8,6 @@ MainWindow::MainWindow(QWidget *parent) :
     received(0),
     curdev(0)
 {
-
 //    qDebug() << "-----------------";
 //    qDebug() << typeid(void).name(); // v
 //    qDebug() << typeid(bool).name(); // b
@@ -40,7 +39,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
     }
 
-
     uart = new QSerialPort();
     uart->setBaudRate(1000000);
     uart->setParity(QSerialPort::EvenParity);
@@ -49,6 +47,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     onbvs = new ObjnetVirtualServer(this);
     connect(onbvs, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+    connect(onbvs, SIGNAL(message(QString)), SLOT(logMessage(QString)));
 
 
     can = new SerialCan(uart, SerialCan::protoCommon);
@@ -76,7 +75,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(master, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
     connect(master, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
 
-    onb.last()->setActive(true);
+    //onb.last()->setActive(true);
 
     onb << new ObjnetVirtualInterface("main");
     ObjnetNode *n1 = new ObjnetNode(onb.last());
@@ -171,6 +170,11 @@ MainWindow::MainWindow(QWidget *parent) :
     }
     connect(mPorts, SIGNAL(activated(QString)), SLOT(onPortChanged(QString)));
 
+    mOviServerBtn = new QPushButton("ONB server");
+    mOviServerBtn->setCheckable(true);
+    connect(mOviServerBtn, SIGNAL(clicked(bool)), onbvs, SLOT(setEnabled(bool)));
+    ui->mainToolBar->addWidget(mOviServerBtn);
+
     btn = new QPushButton("Send");
     btn->setFixedWidth(80);
     connect(btn, SIGNAL(clicked()), this, SLOT(onBtn()));
@@ -204,7 +208,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     editLog = new QTextEdit();
     editLog->setMinimumWidth(200);
+//    editLog->setFontFamily("Courier New");
 //    editLog->setReadOnly(true);
+
 
     mTree = new QTreeWidget();
     mTree->setMinimumWidth(250);
@@ -234,7 +240,7 @@ MainWindow::MainWindow(QWidget *parent) :
     }
     mInfoBox->setLayout(gblay);
 
-    mObjTable = new QTableWidget(1, 2);
+    mObjTable = new QTableWidget();//1, 2);
     mObjTable->setColumnWidth(1, 150);
     connect(mObjTable, SIGNAL(cellChanged(int,int)), SLOT(onCellChanged(int,int)));
 
@@ -249,6 +255,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->statusBar->addWidget(status);
     status2 = new QLabel();
     ui->statusBar->addWidget(status2);
+    status3 = new QLabel();
+    ui->statusBar->addWidget(status3);
 
     QGridLayout *glay = new QGridLayout;
     QGroupBox *protoBox = new QGroupBox("Protocol");
@@ -289,42 +297,42 @@ MainWindow::MainWindow(QWidget *parent) :
     mEtimer.start();
 
 
-    QVBoxLayout *vl2 = new QVBoxLayout();
-    QWidget *widget =  new QWidget(this,Qt::Window|Qt::Tool);
-    widget->setMinimumSize(400, 300);
-    widget->show();
+//    QVBoxLayout *vl2 = new QVBoxLayout();
+//    QWidget *widget =  new QWidget(this,Qt::Window|Qt::Tool);
+//    widget->setMinimumSize(400, 300);
+//    widget->show();
 
 
-    panel3d = new QPanel3D(widget);
-    panel3d->show();
+//    panel3d = new QPanel3D(widget);
+//    panel3d->show();
 
-    mGraph = new Graph2D(panel3d->root());
-
-
-
+//    mGraph = new Graph2D(panel3d->root());
 
 
 
-    panel3d->camera()->setPosition(QVector3D(0, 0, 10));
-    panel3d->camera()->setDirection(QVector3D(0, 0, -1));
-    panel3d->camera()->setTopDir(QVector3D(0, 1, 0));
-    panel3d->camera()->setOrtho(true);
-    panel3d->camera()->setFixedViewportSize(QSizeF(110, 110));
-    panel3d->camera()->setFixedViewport(true);
-    panel3d->setBackColor(Qt::white);
-    panel3d->setLightingEnabled(false);
 
-    mGraph->setSize(100, 100);
-    mGraph->setPosition(-50, -50, 0);
-    mGraph->setBounds(QRectF(0, 0, 0, 0));
 
-    mGraph->setLabelX("angle1");
-    mGraph->setLabelX("angle2");
-    mGraph->setLabelX("angle3");
-    mGraph->setLabelX("angle4");
 
-    vl2->addWidget(panel3d);
-    widget->setLayout(vl2);
+//    panel3d->camera()->setPosition(QVector3D(0, 0, 10));
+//    panel3d->camera()->setDirection(QVector3D(0, 0, -1));
+//    panel3d->camera()->setTopDir(QVector3D(0, 1, 0));
+//    panel3d->camera()->setOrtho(true);
+//    panel3d->camera()->setFixedViewportSize(QSizeF(110, 110));
+//    panel3d->camera()->setFixedViewport(true);
+//    panel3d->setBackColor(Qt::white);
+//    panel3d->setLightingEnabled(false);
+
+//    mGraph->setSize(100, 100);
+//    mGraph->setPosition(-50, -50, 0);
+//    mGraph->setBounds(QRectF(0, 0, 0, 0));
+
+//    mGraph->setLabelX("angle1");
+//    mGraph->setLabelX("angle2");
+//    mGraph->setLabelX("angle3");
+//    mGraph->setLabelX("angle4");
+
+//    vl2->addWidget(panel3d);
+//    widget->setLayout(vl2);
 
 
 
@@ -408,6 +416,11 @@ void MainWindow::onMessageSent(ulong id, QByteArray &data)
 }
 //---------------------------------------------------------------------------
 
+void MainWindow::logMessage(QString message)
+{
+    editLog->append("<code>" + message + "</code>");
+}
+
 void MainWindow::logMessage(ulong id, QByteArray &data, bool dir)
 {
     QString strid;
@@ -438,9 +451,10 @@ void MainWindow::logMessage(ulong id, QByteArray &data, bool dir)
 void MainWindow::logMessage(QString netname, CommonMessage &msg)
 {
     QString text;
-    text.sprintf("[%d] ", mEtimer.elapsed());
+    text.sprintf("[%d] ", static_cast<int>(mEtimer.elapsed()));
     text += netname + ": ";
     QString sid = QString().sprintf("%08X", (unsigned int)msg.rawId());
+    QString sdata = ba2str(msg.data());
     if (msg.isGlobal())
     {
         text += "<b>" + sid + "</b>";
@@ -455,12 +469,14 @@ void MainWindow::logMessage(QString netname, CommonMessage &msg)
     {
         text += sid;
         text += " >> ";
-        text += ba2str(msg.data());
+        text += sdata;
         if (msg.localId().mac != 0)
             text = "<font color=red>" + text + "</font>";
         else
             text = "<font color=blue>" + text + "</font>";
     }
+    editIdIn->setText(sid);
+    editDataIn->setText(sdata);
     editLog->append(text);
 //    qDebug() << text;
 }
@@ -601,6 +617,39 @@ void MainWindow::onCellChanged(int row, int col)
 
 void MainWindow::onObjectReceive(QString name, QVariant value)
 {
+    if (name == "App::incrementTest")
+    {
+        static float oldt = -1;
+        static float tf = 0;
+        float t1 = mEtimer.nsecsElapsed() * 1e-6;
+        float dt = t1 - oldt;
+        if (dt > 1000)
+            dt = 5;
+        if (oldt < 0)
+        {
+            tf = dt;
+        }
+        else
+        {
+            tf = 0.999*tf + 0.001*dt;
+            static int oval = 0;
+            static int errs = 0;
+            QString str = value.toString();
+            int idx = str.indexOf(' ');
+            int val = str.left(idx).toInt();
+            if (oval != val)
+            {
+                errs++;
+                oval = val;
+            }
+            oval++;
+            status3->setText(QString().sprintf("dt= %.2f ms, errs=%d", tf, errs));
+        }
+        oldt = t1;
+
+
+    }
+
     //qDebug() << "[MainWindow] object received:" << name << "=" << value;
     for (int i=0; i<mObjTable->rowCount(); i++)
     {
@@ -667,28 +716,28 @@ void MainWindow::onTimer()
         for (int i=0; i<dev->objectCount(); i++)
         {
             ObjectInfo *info = dev->objectInfo(i);
-            if (info->flags() & ObjectInfo::Volatile)
-                dev->requestObject(info->name());
+//            if (info->flags() & ObjectInfo::Volatile)
+//                dev->requestObject(info->name());
         }
         //dev->sendObject("testVar");
         setWindowTitle(dev->fullName());
      }
 
 
-         panel3d->updateGL();
-static float time =0;
-         mGraph->addPoint("angle1", time, tempEnc1[4]);
-          mGraph->addPoint("angle2", time, tempEnc1[5]);
-           mGraph->addPoint("angle3", time, tempEnc1[6]);
-            mGraph->addPoint("angle4", time, tempEnc1[7]);
+//         panel3d->updateGL();
+//static float time =0;
+//         mGraph->addPoint("angle1", time, tempEnc1[4]);
+//          mGraph->addPoint("angle2", time, tempEnc1[5]);
+//           mGraph->addPoint("angle3", time, tempEnc1[6]);
+//            mGraph->addPoint("angle4", time, tempEnc1[7]);
 
-            time+=0.03;
+//            time+=0.03;
 }
 //---------------------------------------------------------------------------
 
 void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 {
-    editLog->append("device added: netAddress="+QString().sprintf("0x%02X", netAddress)+"; loc = "+ba2str(locData));
+    logMessage("device added: netAddress="+QString().sprintf("0x%02X", netAddress)+"; loc = "+ba2str(locData));
 
     QTreeWidgetItem *parent = mTree->topLevelItem(0);
 
@@ -722,12 +771,18 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
             QTreeWidgetItem *item = new QTreeWidgetItem(strings);
 
             ObjnetDevice *dev = master->device(netAddress);
+            if (!dev)
+            {
+                qDebug() << "netAddress" << netAddress << "does not exist";
+                return;
+            }
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
+            connect(dev, SIGNAL(ready()), SLOT(onDevReady()));
             if (dev->bindVariable("adc", mAdcValue))
                 qDebug() << "variable 'adc' binded";
             else
                 qDebug() << "type mismatch while binding variable 'adc'";
-            dev->bindVariable("testString", strtest);
+            dev->bindVariable("App::incrementTest", strtest);
             dev->bindVariable("testVar", testVar);
             dev->bindVariable("tempEnc1",tempEnc1);
             dev->bindVariable("tempEnc2",tempEnc2);
@@ -752,7 +807,7 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 
 void MainWindow::onDevConnected(unsigned char netAddress)
 {
-    editLog->append("device connected: netAddress="+QString().sprintf("0x%02X", netAddress));
+    logMessage("device connected: netAddress="+QString().sprintf("0x%02X", netAddress));
     QTreeWidgetItem *item = mItems.value(netAddress, 0L);
     if (item)
     {
@@ -768,7 +823,7 @@ void MainWindow::onDevConnected(unsigned char netAddress)
 
 void MainWindow::onDevDisconnected(unsigned char netAddress)
 {
-    editLog->append("device disconnected: netAddress="+QString().sprintf("0x%02X", netAddress));
+    logMessage("device disconnected: netAddress="+QString().sprintf("0x%02X", netAddress));
     QTreeWidgetItem *item = mItems.value(netAddress, 0L);
     if (item)
     {
@@ -778,7 +833,7 @@ void MainWindow::onDevDisconnected(unsigned char netAddress)
 
 void MainWindow::onDevRemoved(unsigned char netAddress)
 {
-    editLog->append("device removed: netAddress="+QString().sprintf("0x%02X", netAddress));
+    logMessage("device removed: netAddress="+QString().sprintf("0x%02X", netAddress));
 
     QTreeWidgetItem *item = mItems.value(netAddress, 0L);
     if (item)
@@ -838,5 +893,14 @@ void MainWindow::upgrade()
 void MainWindow::onBindTest(int var)
 {
     qDebug() << "binded method called (!!) with var = " << var;
+}
+//---------------------------------------------------------------------------
+
+void MainWindow::onDevReady()
+{
+    ObjnetDevice *dev = qobject_cast<ObjnetDevice*>(sender());
+    logMessage("device ready: " + dev->name());
+    //dev->autoRequest("testString", 3);
+    dev->autoRequest("App::incrementTest", 5);
 }
 //---------------------------------------------------------------------------
