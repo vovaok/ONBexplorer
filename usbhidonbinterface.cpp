@@ -54,16 +54,10 @@ bool UsbHidOnbInterface::write(Objnet::CommonMessage &msg)
     ba[4] = sz;
     for (int i=0; i<sz; i++)
         ba[5+i] = msg.data()[i];
+    //qDebug() << "start set feature";
     usb->setFeature(0x01, ba);
+    //qDebug() << "end";
 
-    QString strdata;
-    for (int i=0; i<msg.data().size(); i++)
-    {
-        QString s;
-        unsigned char byte = msg.data()[i];
-        s.sprintf("%02X ", byte);
-        strdata += s;
-    }
     emit message("usbonb", msg); // for debug purposes
     return true;
 }
@@ -90,14 +84,6 @@ bool UsbHidOnbInterface::read(Objnet::CommonMessage &msg)
         unsigned char sz = ba[4];
         msg.setData(QByteArray(ba.data() + 5, sz));
 
-        QString strdata;
-        for (int i=0; i<msg.data().size(); i++)
-        {
-            QString s;
-            unsigned char byte = msg.data()[i];
-            s.sprintf("%02X ", byte);
-            strdata += s;
-        }
         emit message("usbonb", msg); // for debug purposes
     }
 //    else
