@@ -6,7 +6,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow),
     sent(0),
     received(0),
-    curdev(0)
+    device(0L)
 {
 //    qDebug() << "-----------------";
 //    qDebug() << typeid(void).name(); // v
@@ -61,19 +61,25 @@ MainWindow::MainWindow(QWidget *parent) :
 
 //    master = new ObjnetMaster(new SerialCanInterface(can));
 
-//    UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbHidThread(0x0bad, 0xcafe, this));
-//    connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
-//    master = new ObjnetMaster(usbonb);
+    UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbHidThread(0x0bad, 0xcafe, this));
+    connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+    usbMaster = new ObjnetMaster(usbonb);
+
+    connect(usbMaster, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
+    connect(usbMaster, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
+    connect(usbMaster, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
+    connect(usbMaster, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
+    connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
 
     onb << new ObjnetVirtualInterface("main");
-    master = new ObjnetMaster(onb.last());
-    master->setName("main");
+    oviMaster = new ObjnetMaster(onb.last());
+    oviMaster->setName("main");
 
-    connect(master, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
-    connect(master, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
-    connect(master, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
-    connect(master, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
-    connect(master, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
+    connect(oviMaster, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
+    connect(oviMaster, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
+    connect(oviMaster, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
+    connect(oviMaster, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
+    connect(oviMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
 
     //onb.last()->setActive(true);
 
@@ -133,6 +139,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     QVBoxLayout *netlay = new QVBoxLayout;
     QMap<QString, QWidget*> netw;
+    QCheckBox *firstOviNode = 0L;
     foreach (ObjnetVirtualInterface *ovi, onb)
     {
         QString key = ovi->netname();
@@ -146,6 +153,8 @@ MainWindow::MainWindow(QWidget *parent) :
         }
         QCheckBox *chk = new QCheckBox;
         connect(chk, SIGNAL(toggled(bool)), ovi, SLOT(setActive(bool)));
+        if (!firstOviNode)
+            firstOviNode = chk;
         netw[key]->layout()->addWidget(chk);
     }
 
@@ -244,10 +253,13 @@ MainWindow::MainWindow(QWidget *parent) :
     mObjTable->setColumnWidth(1, 150);
     connect(mObjTable, SIGNAL(cellChanged(int,int)), SLOT(onCellChanged(int,int)));
 
-    // ONLY IF ONBVS USED!!
     QStringList strings;
-    strings << "<root>" << "0" << "0" << "FFFFFFFF";
+    strings << "<Usb>" << "0" << "0" << "FFFFFFFF";
     QTreeWidgetItem *item = new QTreeWidgetItem(strings);
+    mTree->addTopLevelItem(item);
+    item->setExpanded(true);
+    strings[0] = "<WiFi>";
+    item = new QTreeWidgetItem(strings);
     mTree->addTopLevelItem(item);
     item->setExpanded(true);
 
@@ -310,9 +322,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
 
-
-
-
 //    panel3d->camera()->setPosition(QVector3D(0, 0, 10));
 //    panel3d->camera()->setDirection(QVector3D(0, 0, -1));
 //    panel3d->camera()->setTopDir(QVector3D(0, 1, 0));
@@ -335,7 +344,9 @@ MainWindow::MainWindow(QWidget *parent) :
 //    widget->setLayout(vl2);
 
 
-
+    mOviServerBtn->setChecked(true);
+    onbvs->setEnabled(true);
+    firstOviNode->setChecked(true);
 }
 
 MainWindow::~MainWindow()
@@ -363,12 +374,13 @@ void MainWindow::onBtn()
             data.append(byte);
         }
     }
-    curdev = (id >> 24) & 0xF;
+//    curdev = (id >> 24) & 0xF;
     //can->sendMessage(id, data);
     CommonMessage msg;
     msg.setId(id);
     msg.setData(data);
-    master->objnetInterface()->write(msg);
+    if (master)
+        master->objnetInterface()->write(msg);
 }
 
 void MainWindow::onBtn2()
@@ -495,6 +507,17 @@ QString MainWindow::ba2str(const QByteArray &ba)
 }
 //---------------------------------------------------------------------------
 
+int MainWindow::getRootId(ObjnetMaster *mas)
+{
+    if (mas == usbMaster)
+        return 0;
+    else if (mas == oviMaster)
+        return 1;
+    else
+        return -1;
+}
+//---------------------------------------------------------------------------
+
 void MainWindow::onBtnProto()
 {
     QPushButton *btn = qobject_cast<QPushButton*>(sender());
@@ -513,11 +536,12 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
     Q_UNUSED(column);
     mObjTable->clear();
     mObjTable->setRowCount(0);
+    //int rootId = item->data(0, Qt::UserRole+1).toInt();
     QVariant v = item->data(0, Qt::UserRole);
     ObjnetDevice *dev = reinterpret_cast<ObjnetDevice*>(v.toInt());
     if (dev)
     {
-        curdev = dev->netAddress();
+        device = dev;
 
         mInfoBox->setTitle("Device info: " + dev->name());
         mEdits["Net address"]->setText(QString::number(dev->netAddress()));
@@ -588,7 +612,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
     }
     else
     {
-        curdev = 0;
+        device = 0L;
         mInfoBox->setTitle("Device info");
         foreach (QLineEdit *ed, mEdits)
             ed->clear();
@@ -599,10 +623,9 @@ void MainWindow::onCellChanged(int row, int col)
 {
     if (col != 1)
         return;
-    if (master->devices().count(curdev))
+    if (device)
     {
-        ObjnetDevice *dev = master->devices().at(curdev);
-        ObjectInfo *info = dev->objectInfo(row);
+        ObjectInfo *info = device->objectInfo(row);
         QVariant val = mObjTable->item(row, col)->text();
         if (info->rType() == ObjectInfo::Common)
             val = QByteArray::fromHex(val.toByteArray());
@@ -611,7 +634,7 @@ void MainWindow::onCellChanged(int row, int col)
         info->fromVariant(val);
         if (info->flags() & ObjectInfo::Function)
             return;
-        dev->sendObject(info->name());
+        device->sendObject(info->name());
     }
 }
 
@@ -689,7 +712,7 @@ void MainWindow::onBoardConnect()
 void MainWindow::onBoardDisconnect()
 {
     status->setText("Disconnected");
-    master->reset();
+//    master->reset();
     mTree->clear();
     mItems.clear();
 }
@@ -704,23 +727,19 @@ void MainWindow::resetStat()
 
 void MainWindow::onTimer()
 {
-//    master->task();
-
-
     status->setText(QString::number(mAdcValue));
     status2->setText(strtest);
 
-    if (master->devices().count(curdev))
+    if (device)
     {
-        ObjnetDevice *dev = master->devices().at(curdev);
-        for (int i=0; i<dev->objectCount(); i++)
+        for (int i=0; i<device->objectCount(); i++)
         {
-            ObjectInfo *info = dev->objectInfo(i);
+            ObjectInfo *info = device->objectInfo(i);
 //            if (info->flags() & ObjectInfo::Volatile)
-//                dev->requestObject(info->name());
+//                device->requestObject(info->name());
         }
-        //dev->sendObject("testVar");
-        setWindowTitle(dev->fullName());
+        //device->sendObject("testVar");
+        setWindowTitle(device->fullName());
      }
 
 
@@ -737,9 +756,15 @@ void MainWindow::onTimer()
 
 void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 {
+    ObjnetMaster *master = qobject_cast<ObjnetMaster*>(sender());
+
     logMessage("device added: netAddress="+QString().sprintf("0x%02X", netAddress)+"; loc = "+ba2str(locData));
 
-    QTreeWidgetItem *parent = mTree->topLevelItem(0);
+    int rootId = getRootId(master);
+    if (rootId < 0)
+        return;
+
+    QTreeWidgetItem *parent = mTree->topLevelItem(rootId);
 
     for (int i=locData.size()-1; i>0; --i)
     {
@@ -755,9 +780,9 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
                 if (i == 1)
                 {
                     int netaddr = parent->text(2).toInt();
-                    mItems.remove(netaddr);
+                    mItems.remove(rootId+netaddr);
                     parent->setText(2, QString::number(netAddress));
-                    mItems[netAddress] = parent;
+                    mItems[rootId+netAddress] = parent;
                 }
                 break;
             }
@@ -791,8 +816,9 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 
             int ptr = reinterpret_cast<int>(dev);
             item->setData(0, Qt::UserRole, ptr);
+            item->setData(0, Qt::UserRole+1, rootId);
             parent->addChild(item);
-            mItems[netAddress] = item;
+            mItems[rootId+netAddress] = item;
             item->setExpanded(true);
             item->setDisabled(true);
         }
@@ -807,8 +833,13 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 
 void MainWindow::onDevConnected(unsigned char netAddress)
 {
+    ObjnetMaster *master = qobject_cast<ObjnetMaster*>(sender());
+    int rootId = getRootId(master);
+    if (rootId < 0)
+        return;
+
     logMessage("device connected: netAddress="+QString().sprintf("0x%02X", netAddress));
-    QTreeWidgetItem *item = mItems.value(netAddress, 0L);
+    QTreeWidgetItem *item = mItems.value(rootId+netAddress, 0L);
     if (item)
     {
         item->setDisabled(false);
@@ -823,8 +854,13 @@ void MainWindow::onDevConnected(unsigned char netAddress)
 
 void MainWindow::onDevDisconnected(unsigned char netAddress)
 {
+    ObjnetMaster *master = qobject_cast<ObjnetMaster*>(sender());
+    int rootId = getRootId(master);
+    if (rootId < 0)
+        return;
+
     logMessage("device disconnected: netAddress="+QString().sprintf("0x%02X", netAddress));
-    QTreeWidgetItem *item = mItems.value(netAddress, 0L);
+    QTreeWidgetItem *item = mItems.value(rootId+netAddress, 0L);
     if (item)
     {
         item->setDisabled(true);
@@ -833,20 +869,33 @@ void MainWindow::onDevDisconnected(unsigned char netAddress)
 
 void MainWindow::onDevRemoved(unsigned char netAddress)
 {
+    ObjnetMaster *master = qobject_cast<ObjnetMaster*>(sender());
+    int rootId = getRootId(master);
+    if (rootId < 0)
+        return;
+
+    if (master->device(netAddress) == device)
+        device = 0L;
+
     logMessage("device removed: netAddress="+QString().sprintf("0x%02X", netAddress));
 
-    QTreeWidgetItem *item = mItems.value(netAddress, 0L);
+    QTreeWidgetItem *item = mItems.value(rootId+netAddress, 0L);
     if (item)
     {
         item->parent()->removeChild(item);
     }
-    mItems.remove(netAddress);
+    mItems.remove(rootId+netAddress);
 }
 //---------------------------------------------------------------------------
 
 void MainWindow::onServiceMessageAccepted(unsigned char netAddress, SvcOID oid, const QByteArray &data)
 {
-    QTreeWidgetItem *item = mItems.value(netAddress, 0L);
+    ObjnetMaster *master = qobject_cast<ObjnetMaster*>(sender());
+    int rootId = getRootId(master);
+    if (rootId < 0)
+        return;
+
+    QTreeWidgetItem *item = mItems.value(rootId+netAddress, 0L);
     if (item)
     {
         switch (oid)
@@ -883,11 +932,14 @@ void MainWindow::onPortChanged(QString portname)
 
 void MainWindow::upgrade()
 {
-    master->sendGlobalMessage(aidUpgradeStart);
-    master->sendGlobalMessage(aidUpgradeConfirm);
-    master->sendGlobalMessage(aidUpgradeData);
+    if (master)
+    {
+        master->sendGlobalMessage(aidUpgradeStart);
+        master->sendGlobalMessage(aidUpgradeConfirm);
+        master->sendGlobalMessage(aidUpgradeData);
 
-    master->sendGlobalMessage(aidUpgradeEnd);
+        master->sendGlobalMessage(aidUpgradeEnd);
+    }
 }
 
 void MainWindow::onBindTest(int var)

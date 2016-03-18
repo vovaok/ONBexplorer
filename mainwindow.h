@@ -41,7 +41,7 @@ private:
     QTextEdit *editLog;
     QLabel *status, *status2, *status3;
     QTreeWidget *mTree;
-    QMap<unsigned char, QTreeWidgetItem*> mItems;
+    QMap<unsigned short, QTreeWidgetItem*> mItems;
     QGroupBox *mInfoBox;//, *mObjBox;
     QMap<QString, QLineEdit*> mEdits;
     QTableWidget *mObjTable;
@@ -55,8 +55,8 @@ private:
 
     QSerialPort *uart;
     SerialCan *can;
-    ObjnetMaster *master;
-    unsigned char curdev;
+    ObjnetMaster *master, *usbMaster, *oviMaster;
+    ObjnetDevice *device;
 
     unsigned short mAdcValue;
     QString strtest;
@@ -72,6 +72,7 @@ private:
 
     void logMessage(ulong id, QByteArray &data, bool dir=0);
     QString ba2str(const QByteArray &ba);
+    int getRootId(ObjnetMaster *mas);
 
 private slots:
     void onBtn();
