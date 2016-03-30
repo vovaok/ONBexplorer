@@ -8,26 +8,6 @@ MainWindow::MainWindow(QWidget *parent) :
     received(0),
     device(0L)
 {
-//    qDebug() << "-----------------";
-//    qDebug() << typeid(void).name(); // v
-//    qDebug() << typeid(bool).name(); // b
-//    qDebug() << typeid(int).name(); // i
-//    qDebug() << typeid(unsigned int).name(); // j
-//    qDebug() << typeid(long long).name(); // x
-//    qDebug() << typeid(unsigned long long).name(); // y
-//    qDebug() << typeid(double).name(); // d
-//    qDebug() << typeid(long).name(); // l
-//    qDebug() << typeid(short).name(); // s
-//    qDebug() << typeid(char).name(); // c
-//    qDebug() << typeid(unsigned long).name(); // m
-//    qDebug() << typeid(unsigned short).name(); // t
-//    qDebug() << typeid(unsigned char).name(); // h
-//    qDebug() << typeid(float).name(); // f
-//    qDebug() << typeid(signed char).name(); // a
-//    qDebug() << typeid(string).name(); // Ss
-//    qDebug() << "-----------------";
-
-
     ui->setupUi(this);
 //    resize(800, 500);
 
@@ -70,6 +50,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(usbMaster, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
     connect(usbMaster, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
     connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
+    connect(usbMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
     onb << new ObjnetVirtualInterface("main");
     oviMaster = new ObjnetMaster(onb.last());
@@ -80,6 +61,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(oviMaster, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
     connect(oviMaster, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
     connect(oviMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
+    connect(oviMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
     //onb.last()->setActive(true);
 
@@ -184,12 +166,13 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(mOviServerBtn, SIGNAL(clicked(bool)), onbvs, SLOT(setEnabled(bool)));
     ui->mainToolBar->addWidget(mOviServerBtn);
 
+    mLogEnableBtn = new QPushButton("Enable log");
+    mLogEnableBtn->setCheckable(true);
+    ui->mainToolBar->addWidget(mLogEnableBtn);
+
     btn = new QPushButton("Send");
     btn->setFixedWidth(80);
     connect(btn, SIGNAL(clicked()), this, SLOT(onBtn()));
-    btn2 = new QPushButton("Send 30");
-    btn2->setFixedWidth(80);
-    connect(btn2, SIGNAL(clicked()), this, SLOT(onBtn2()));
 
     btnResetStat = new QPushButton("Reset stat");
     btnResetStat->setFixedWidth(80);
@@ -250,7 +233,7 @@ MainWindow::MainWindow(QWidget *parent) :
     mInfoBox->setLayout(gblay);
 
     mObjTable = new QTableWidget();//1, 2);
-    mObjTable->setColumnWidth(1, 150);
+    mObjTable->setMinimumWidth(372);
     connect(mObjTable, SIGNAL(cellChanged(int,int)), SLOT(onCellChanged(int,int)));
 
     QStringList strings;
@@ -283,7 +266,6 @@ MainWindow::MainWindow(QWidget *parent) :
     h1->addWidget(new QLabel("Data"));
     h1->addWidget(editData);
     h1->addWidget(btn);
-    h1->addWidget(btn2);
     outBox->setLayout(h1);
     QGroupBox *inBox = new QGroupBox("In message");
     QHBoxLayout *h2 = new QHBoxLayout();
@@ -292,14 +274,15 @@ MainWindow::MainWindow(QWidget *parent) :
     h2->addWidget(new QLabel("Data"));
     h2->addWidget(editDataIn);
     inBox->setLayout(h2);
-    glay->addLayout(netlay, 0, 0, 2, 1);
-    glay->addWidget(mTree, 2, 0);
-    //glay->addWidget(protoBox, 0, 1);
+
+    glay->addWidget(mTree, 0, 0, 2, 1);
     glay->addWidget(outBox, 0, 1);
     glay->addWidget(inBox, 1, 1);
+    glay->addLayout(netlay, 0, 2, 2, 1);
+    glay->addWidget(mInfoBox, 2, 0);
     glay->addWidget(editLog, 2, 1);
-    glay->addWidget(mObjTable, 0, 2, 2, 1);
-    glay->addWidget(mInfoBox, 2, 2);
+    glay->addWidget(mObjTable, 2, 2);
+
     ui->centralWidget->setLayout(glay);
 
     QTimer *timer = new QTimer(this);
@@ -462,6 +445,9 @@ void MainWindow::logMessage(ulong id, QByteArray &data, bool dir)
 
 void MainWindow::logMessage(QString netname, CommonMessage &msg)
 {
+    if (!mLogEnableBtn->isChecked())
+        return;
+
     QString text;
     text.sprintf("[%d] ", static_cast<int>(mEtimer.elapsed()));
     text += netname + ": ";
@@ -557,6 +543,13 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         int cnt = dev->objectCount();
         mObjTable->setColumnCount(4);
         mObjTable->setRowCount(cnt);
+        mObjTable->setColumnWidth(0, 100);
+        mObjTable->setColumnWidth(1, 100);
+        mObjTable->setColumnWidth(2, 80);
+        mObjTable->setColumnWidth(3, 50);
+        QStringList objtablecolumns;
+        objtablecolumns << "name" << "value" << "type" << "flags";
+        mObjTable->setHorizontalHeaderLabels(objtablecolumns);
         mObjTable->blockSignals(true);
         for (int i=0; i<cnt; i++)
         {
@@ -803,16 +796,7 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
             }
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
             connect(dev, SIGNAL(ready()), SLOT(onDevReady()));
-            if (dev->bindVariable("adc", mAdcValue))
-                qDebug() << "variable 'adc' binded";
-            else
-                qDebug() << "type mismatch while binding variable 'adc'";
-            dev->bindVariable("App::incrementTest", strtest);
-            dev->bindVariable("testVar", testVar);
-            dev->bindVariable("tempEnc1",tempEnc1);
-            dev->bindVariable("tempEnc2",tempEnc2);
-            dev->bindVariable("tempEnc3",tempEnc3);
-
+            connect(dev, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
             int ptr = reinterpret_cast<int>(dev);
             item->setData(0, Qt::UserRole, ptr);
@@ -915,6 +899,21 @@ void MainWindow::onServiceMessageAccepted(unsigned char netAddress, SvcOID oid, 
         }
     }
 }
+
+void MainWindow::onGlobalMessage(unsigned char aid)
+{
+    ObjnetDevice *dev = qobject_cast<ObjnetDevice*>(sender());
+    ObjnetMaster *mas = qobject_cast<ObjnetMaster*>(sender());
+    QString said = QString::number((int)aid);
+    QString text = "Global message: " + said;
+    if (dev)
+        text = "Global message from " + dev->name() + ": " + said;
+    else if (mas == usbMaster)
+        text = "Global message on <Usb>: " + said;
+    else if (mas == oviMaster)
+        text = "Global message on <WiFi>: " + said;
+    logMessage(text.toHtmlEscaped());
+}
 //---------------------------------------------------------------------------
 
 void MainWindow::onPortChanged(QString portname)
@@ -953,6 +952,13 @@ void MainWindow::onDevReady()
     ObjnetDevice *dev = qobject_cast<ObjnetDevice*>(sender());
     logMessage("device ready: " + dev->name());
     //dev->autoRequest("testString", 3);
-    dev->autoRequest("App::incrementTest", 5);
+    //dev->autoRequest("App::incrementTest", 5);
+
+    for (int i=0; i<dev->objectCount(); i++)
+    {
+        ObjectInfo *info = dev->objectInfo(i);
+        if (info->isVolatile())
+            dev->autoRequest(info->name(), 30);
+    }
 }
 //---------------------------------------------------------------------------

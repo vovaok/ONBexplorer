@@ -33,9 +33,9 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    QPushButton *btn, *btn2, *btnResetStat, *btnUpgrade;
+    QPushButton *btn, *btnUpgrade;
     QPushButton *btnProto1, *btnProto2;
-    QPushButton *mOviServerBtn;
+    QPushButton *mOviServerBtn, *mLogEnableBtn, *btnResetStat;
     QLineEdit *editId, *editData;
     QLineEdit *editIdIn, *editDataIn;
     QTextEdit *editLog;
@@ -100,6 +100,7 @@ private slots:
     void onDevDisconnected(unsigned char netAddress);
     void onDevRemoved(unsigned char netAddress);
     void onServiceMessageAccepted(unsigned char netAddress, SvcOID oid, const QByteArray &data);
+    void onGlobalMessage(unsigned char aid);
 
     void onDevReady();
 
