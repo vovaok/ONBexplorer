@@ -70,9 +70,12 @@ private:
     ObjnetVirtualServer *onbvs;
     QVector<ObjnetVirtualInterface*> onb;
 
+    QMap<QString, QTextEdit*> mLogs;
+
     void logMessage(ulong id, QByteArray &data, bool dir=0);
     QString ba2str(const QByteArray &ba);
     int getRootId(ObjnetMaster *mas);
+    ObjnetMaster *getMasterOfItem(QTreeWidgetItem *item);
 
 private slots:
     void onBtn();
@@ -80,6 +83,7 @@ private slots:
     void onBtnProto();
     void onItemClick(QTreeWidgetItem *item, int column);
     void onCellChanged(int row, int col);
+    void onCellDblClick(int row, int col);
     void onObjectReceive(QString name, QVariant value);
 
     void onMessage(ulong id, QByteArray &data);

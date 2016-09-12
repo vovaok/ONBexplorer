@@ -235,6 +235,7 @@ MainWindow::MainWindow(QWidget *parent) :
     mObjTable = new QTableWidget();//1, 2);
     mObjTable->setMinimumWidth(372);
     connect(mObjTable, SIGNAL(cellChanged(int,int)), SLOT(onCellChanged(int,int)));
+    connect(mObjTable, SIGNAL(cellDoubleClicked(int,int)), SLOT(onCellDblClick(int,int)));
 
     QStringList strings;
     strings << "<Usb>" << "0" << "0" << "FFFFFFFF";
@@ -330,6 +331,10 @@ MainWindow::MainWindow(QWidget *parent) :
     mOviServerBtn->setChecked(true);
     onbvs->setEnabled(true);
     firstOviNode->setChecked(true);
+
+    QPushButton *b = new QPushButton("upgrade");
+    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
+    ui->mainToolBar->addWidget(b);
 }
 
 MainWindow::~MainWindow()
@@ -502,6 +507,19 @@ int MainWindow::getRootId(ObjnetMaster *mas)
     else
         return -1;
 }
+
+ObjnetMaster *MainWindow::getMasterOfItem(QTreeWidgetItem *item)
+{
+    while (item->parent())
+        item = item->parent();
+    int idx = mTree->indexOfTopLevelItem(item);
+    switch (idx)
+    {
+        case 0: return usbMaster;
+        case 1: return oviMaster;
+    }
+    return nullptr;
+}
 //---------------------------------------------------------------------------
 
 void MainWindow::onBtnProto()
@@ -522,12 +540,25 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
     Q_UNUSED(column);
     mObjTable->clear();
     mObjTable->setRowCount(0);
-    //int rootId = item->data(0, Qt::UserRole+1).toInt();
+    //int rootId = item->data(0, Qt::UserRole+1).toInt();  
+
+//    if (item->parent() && mTree->indexOfTopLevelItem(item->parent()) == -1) // no direct connection of device
+//        qDebug() << "need request";
+
+    ObjnetMaster *master = getMasterOfItem(item);
+
     QVariant v = item->data(0, Qt::UserRole);
     ObjnetDevice *dev = reinterpret_cast<ObjnetDevice*>(v.toInt());
     if (dev)
     {
         device = dev;
+
+        if (!dev->isInfoValid())
+        {
+            //qDebug() << "request" << dev->netAddress();
+            master->requestDevInfo(dev->netAddress());
+            master->requestObjInfo(dev->netAddress());
+        }
 
         mInfoBox->setTitle("Device info: " + dev->name());
         mEdits["Net address"]->setText(QString::number(dev->netAddress()));
@@ -554,6 +585,8 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         for (int i=0; i<cnt; i++)
         {
             ObjectInfo *info = dev->objectInfo(i);
+            if (!info)
+                continue;
             QString name = info->name();
             mObjTable->setItem(i, 1, new QTableWidgetItem("n/a"));
             QString wt = QMetaType::typeName(info->wType());
@@ -631,6 +664,29 @@ void MainWindow::onCellChanged(int row, int col)
     }
 }
 
+void MainWindow::onCellDblClick(int row, int col)
+{
+    Q_UNUSED(col);
+    QTableWidgetItem *item = mObjTable->item(row, 0);
+    if (mLogs.contains(item->text()))
+    {
+        mLogs[item->text()]->parentWidget()->show();
+        return;
+    }
+//    if (item->data(Qt::UserRole+3).isValid())
+//        return;
+
+    QWidget *dlg = new QWidget(this, Qt::Tool);
+    dlg->setWindowTitle(item->text());
+    QTextEdit *log = new QTextEdit(dlg);
+    QVBoxLayout *lay = new QVBoxLayout();
+    lay->addWidget(log);
+    dlg->setLayout(lay);
+    dlg->show();
+    //item->setData(Qt::UserRole + 3, QVariant().fromValue<QTextEdit*>(log));
+    mLogs[item->text()] = log;
+}
+
 void MainWindow::onObjectReceive(QString name, QVariant value)
 {
     if (name == "App::incrementTest")
@@ -669,6 +725,8 @@ void MainWindow::onObjectReceive(QString name, QVariant value)
     //qDebug() << "[MainWindow] object received:" << name << "=" << value;
     for (int i=0; i<mObjTable->rowCount(); i++)
     {
+        if (!mObjTable->item(i, 0))
+            continue;
         QString nm = mObjTable->item(i, 0)->text();
         if (nm == name)
         {
@@ -682,10 +740,17 @@ void MainWindow::onObjectReceive(QString name, QVariant value)
             {
                 if (static_cast<QMetaType::Type>(value.type()) == QMetaType::UChar)
                     value = value.toInt();
+                if (static_cast<QMetaType::Type>(value.type()) == QMetaType::SChar)
+                    value = value.toInt();
                 val = value.toString();
             }
             mObjTable->blockSignals(true);
             mObjTable->item(i, 1)->setText(val);
+            if (mLogs.contains(nm))
+                mLogs[nm]->append(val);
+//            QTextEdit *log = mObjTable->item(i, 0)->data(Qt::UserRole + 3).value<QTextEdit*>();
+//            if (log)
+//                log->append(val);
             mObjTable->blockSignals(false);
         }
     }
@@ -931,13 +996,17 @@ void MainWindow::onPortChanged(QString portname)
 
 void MainWindow::upgrade()
 {
+    master = oviMaster;
     if (master)
     {
-        master->sendGlobalMessage(aidUpgradeStart);
-        master->sendGlobalMessage(aidUpgradeConfirm);
-        master->sendGlobalMessage(aidUpgradeData);
+        QByteArray ba;
+        unsigned long c = cidBrushedMotorController | cidPosition | cidCurrent;
+        ba.append(reinterpret_cast<const char*>(&c), 4);
+        master->sendServiceRequest(aidUpgradeStart, true, ba);
+        master->sendServiceRequest(aidUpgradeConfirm, true);
+//        master->sendServiceRequest(aidUpgradeData, true, ba);
 
-        master->sendGlobalMessage(aidUpgradeEnd);
+//        master->sendServiceRequest(aidUpgradeEnd, true);
     }
 }
 
@@ -954,11 +1023,25 @@ void MainWindow::onDevReady()
     //dev->autoRequest("testString", 3);
     //dev->autoRequest("App::incrementTest", 5);
 
+    QTreeWidgetItem *item = mTree->currentItem();
+    if (item)
+    {
+        QVariant v = item->data(0, Qt::UserRole);
+        ObjnetDevice *itemdev = reinterpret_cast<ObjnetDevice*>(v.toInt());
+        if (itemdev == dev)
+            onItemClick(item, 0);
+    }
+
     for (int i=0; i<dev->objectCount(); i++)
     {
         ObjectInfo *info = dev->objectInfo(i);
+        if (!info)
+            continue;
         if (info->isVolatile())
+        {
             dev->autoRequest(info->name(), 30);
+            qDebug() << "auto request" << info->name();
+        }
     }
 }
 //---------------------------------------------------------------------------
