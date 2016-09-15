@@ -26,8 +26,10 @@ win32: {
 }
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    upgradewidget.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    upgradewidget.h
 
 FORMS    += mainwindow.ui

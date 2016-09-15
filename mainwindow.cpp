@@ -4,9 +4,11 @@
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
+    upg(0L),
     sent(0),
     received(0),
-    device(0L)
+    device(0L),
+    mFirmCnt(0)
 {
     ui->setupUi(this);
 //    resize(800, 500);
@@ -999,14 +1001,27 @@ void MainWindow::upgrade()
     master = oviMaster;
     if (master)
     {
-        QByteArray ba;
-        unsigned long c = cidBrushedMotorController | cidPosition | cidCurrent;
-        ba.append(reinterpret_cast<const char*>(&c), 4);
-        master->sendServiceRequest(aidUpgradeStart, true, ba);
-        master->sendServiceRequest(aidUpgradeConfirm, true);
-//        master->sendServiceRequest(aidUpgradeData, true, ba);
+        QString fname = QFileDialog::getOpenFileName(0L, "Choose firmware binary file", QString(), "Binaries (*.bin)");
+        if (fname.isEmpty())
+            return;
 
-//        master->sendServiceRequest(aidUpgradeEnd, true);
+        QFile f(fname);//"D:/projects/iar/exo/ekzoNashMotor/stm32f405/Exe/ekzoNashMotor.bin");
+        f.open(QIODevice::ReadOnly);
+        mFirmware = f.readAll();
+        mFirmCnt = 0;
+        f.close();
+
+        if (!upg)
+        {
+            upg = new UpgradeWidget(master, this);
+            connect(upg, &UpgradeWidget::destroyed, [this](){upg = 0L;});
+        }
+        else
+        {
+            upg->show();
+        }
+
+        upg->load(mFirmware);
     }
 }
 

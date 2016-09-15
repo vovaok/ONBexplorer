@@ -14,8 +14,10 @@
 
 #include "usbhidonbinterface.h"
 
-#include "panel3d.h"
-#include "graph2d.h"
+//#include "panel3d.h"
+//#include "graph2d.h"
+
+#include "upgradewidget.h"
 
 namespace Ui {
 class MainWindow;
@@ -46,8 +48,10 @@ private:
     QMap<QString, QLineEdit*> mEdits;
     QTableWidget *mObjTable;
 
-    Graph2D *mGraph;
-    QPanel3D *panel3d;
+    UpgradeWidget *upg;
+
+//    Graph2D *mGraph;
+//    QPanel3D *panel3d;
 
     QComboBox *mPorts;
 
@@ -76,6 +80,9 @@ private:
     QString ba2str(const QByteArray &ba);
     int getRootId(ObjnetMaster *mas);
     ObjnetMaster *getMasterOfItem(QTreeWidgetItem *item);
+
+    QByteArray mFirmware;
+    int mFirmCnt;
 
 private slots:
     void onBtn();
