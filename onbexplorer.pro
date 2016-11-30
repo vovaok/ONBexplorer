@@ -27,9 +27,13 @@ win32: {
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    upgradewidget.cpp
+    upgradewidget.cpp \
+    graphwidget.cpp
 
 HEADERS  += mainwindow.h \
-    upgradewidget.h
+    upgradewidget.h \
+    graphwidget.h
 
 FORMS    += mainwindow.ui
+
+RC_ICONS += icon.ico

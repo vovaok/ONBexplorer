@@ -7,10 +7,10 @@ MainWindow::MainWindow(QWidget *parent) :
     upg(0L),
     sent(0),
     received(0),
-    device(0L),
-    mFirmCnt(0)
+    device(0L)
 {
     ui->setupUi(this);
+    setWindowTitle("ONB Explorer");
 //    resize(800, 500);
 
     for(int i =0;i<8;i++)
@@ -219,6 +219,8 @@ MainWindow::MainWindow(QWidget *parent) :
     mTree->setColumnWidth(3, 70);
     mTree->setIndentation(10);
     connect(mTree, SIGNAL(itemClicked(QTreeWidgetItem*,int)), SLOT(onItemClick(QTreeWidgetItem*,int)));
+    mTree->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(mTree, SIGNAL(customContextMenuRequested(QPoint)), SLOT(onDeviceMenu(QPoint)));
 
     mInfoBox = new QGroupBox("Device info");
     QFormLayout *gblay = new QFormLayout;
@@ -295,48 +297,24 @@ MainWindow::MainWindow(QWidget *parent) :
     mEtimer.start();
 
 
+
+
 //    QVBoxLayout *vl2 = new QVBoxLayout();
 //    QWidget *widget =  new QWidget(this,Qt::Window|Qt::Tool);
 //    widget->setMinimumSize(400, 300);
 //    widget->show();
 
 
-//    panel3d = new QPanel3D(widget);
-//    panel3d->show();
-
-//    mGraph = new Graph2D(panel3d->root());
-
-
-
-//    panel3d->camera()->setPosition(QVector3D(0, 0, 10));
-//    panel3d->camera()->setDirection(QVector3D(0, 0, -1));
-//    panel3d->camera()->setTopDir(QVector3D(0, 1, 0));
-//    panel3d->camera()->setOrtho(true);
-//    panel3d->camera()->setFixedViewportSize(QSizeF(110, 110));
-//    panel3d->camera()->setFixedViewport(true);
-//    panel3d->setBackColor(Qt::white);
-//    panel3d->setLightingEnabled(false);
-
-//    mGraph->setSize(100, 100);
-//    mGraph->setPosition(-50, -50, 0);
-//    mGraph->setBounds(QRectF(0, 0, 0, 0));
-
-//    mGraph->setLabelX("angle1");
-//    mGraph->setLabelX("angle2");
-//    mGraph->setLabelX("angle3");
-//    mGraph->setLabelX("angle4");
-
-//    vl2->addWidget(panel3d);
-//    widget->setLayout(vl2);
+    mGraph = new GraphWidget(this);
 
 
     mOviServerBtn->setChecked(true);
     onbvs->setEnabled(true);
     firstOviNode->setChecked(true);
 
-    QPushButton *b = new QPushButton("upgrade");
-    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
-    ui->mainToolBar->addWidget(b);
+//    QPushButton *b = new QPushButton("upgrade");
+//    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
+//    ui->mainToolBar->addWidget(b);
 }
 
 MainWindow::~MainWindow()
@@ -637,6 +615,9 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
             mObjTable->setItem(i, 3, new QTableWidgetItem(flags));
         }
         mObjTable->blockSignals(false);
+
+        mObjTable->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(mObjTable, SIGNAL(customContextMenuRequested(QPoint)), SLOT(onObjectMenu(QPoint)));
     }
     else
     {
@@ -750,9 +731,12 @@ void MainWindow::onObjectReceive(QString name, QVariant value)
             mObjTable->item(i, 1)->setText(val);
             if (mLogs.contains(nm))
                 mLogs[nm]->append(val);
-//            QTextEdit *log = mObjTable->item(i, 0)->data(Qt::UserRole + 3).value<QTextEdit*>();
-//            if (log)
-//                log->append(val);
+
+            if (mObjTable->item(i, 0)->data(Qt::UserRole+4).toBool())
+            {
+                mGraph->addPoint(nm, value.toFloat());
+            }
+
             mObjTable->blockSignals(false);
         }
     }
@@ -996,38 +980,96 @@ void MainWindow::onPortChanged(QString portname)
     }
 }
 
-void MainWindow::upgrade()
+void MainWindow::upgrade(unsigned long classId)
 {
     master = oviMaster;
     if (master)
     {
-        QString fname = QFileDialog::getOpenFileName(0L, "Choose firmware binary file", QString(), "Binaries (*.bin)");
-        if (fname.isEmpty())
-            return;
-
-        QFile f(fname);//"D:/projects/iar/exo/ekzoNashMotor/stm32f405/Exe/ekzoNashMotor.bin");
-        f.open(QIODevice::ReadOnly);
-        mFirmware = f.readAll();
-        mFirmCnt = 0;
-        f.close();
-
-        if (!upg)
+        QStringList result;
+        QStringList diritfilt;
+        diritfilt << "*.bin";
+        QDirIterator dirit("D:/projects/iar", diritfilt, QDir::Files, QDirIterator::Subdirectories);
+        for (int i=0; i<100 && dirit.hasNext(); i++)
         {
-            upg = new UpgradeWidget(master, this);
-            connect(upg, &UpgradeWidget::destroyed, [this](){upg = 0L;});
-        }
-        else
-        {
-            upg->show();
+            QString f = dirit.next();
+            result << f;
+            qDebug() << f;
         }
 
-        upg->load(mFirmware);
+        foreach (QString fname, result)
+        {
+            QFile f(fname);
+            f.open(QIODevice::ReadOnly);
+            QByteArray fw = f.readAll();
+            f.close();
+            if (UpgradeWidget::checkClass(fw, classId))
+            {
+                if (!upg)
+                {
+                    upg = new UpgradeWidget(master, this);
+                    connect(upg, &UpgradeWidget::destroyed, [this](){upg = 0L;});
+                }
+                else
+                {
+                    upg->show();
+                }
+                upg->load(fw);
+                break;
+            }
+        }
     }
 }
 
 void MainWindow::onBindTest(int var)
 {
     qDebug() << "binded method called (!!) with var = " << var;
+}
+
+void MainWindow::onDeviceMenu(QPoint p)
+{
+    QTreeWidgetItem *item = mTree->itemAt(p);
+    if (item)
+    {
+        int netaddr = item->text(2).toInt();
+        unsigned long cid = QString("0x"+item->text(3)).toULong(0, 16);
+//        if (cid == 0xFFFFFFFF)
+//            return;
+
+        QAction *act1 = new QAction("Upgrade "+item->text(0)+" ("+QString::number(netaddr)+")", this);
+        connect(act1, &QAction::triggered, [=](){qDebug() << "upgrade device with address" << netaddr;});
+        QAction *act2 = new QAction("Upgrade all of "+item->text(0)+" ("+item->text(3)+")", this);
+        connect(act2, &QAction::triggered, [=](){this->upgrade(cid);});
+        QMenu menu(this);
+        //menu.addAction(act1);
+        menu.addAction(act2);
+        menu.setWindowModality(Qt::NonModal);
+        menu.exec(mTree->mapToGlobal(p));
+    }
+}
+
+void MainWindow::onObjectMenu(QPoint p)
+{
+    QTableWidgetItem *item = mObjTable->itemAt(p);
+    if (item)
+    {
+        item = mObjTable->item(item->row(), 0);
+
+        QAction *graphAct;
+        if (!item->data(Qt::UserRole+4).toBool())
+        {
+            graphAct = new QAction("Plot graph", this);
+            connect(graphAct, &QAction::triggered, [=](){item->setData(Qt::UserRole+4, true); mGraph->show();});
+        }
+        else
+        {
+            graphAct = new QAction("Remove graph", this);
+            connect(graphAct, &QAction::triggered, [=](){item->setData(Qt::UserRole+4, false);});
+        }
+        QMenu menu(this);
+        menu.addAction(graphAct);
+        menu.setWindowModality(Qt::NonModal);
+        menu.exec(mObjTable->mapToGlobal(p));
+    }
 }
 //---------------------------------------------------------------------------
 
@@ -1054,9 +1096,11 @@ void MainWindow::onDevReady()
             continue;
         if (info->isVolatile())
         {
-            dev->autoRequest(info->name(), 30);
+            dev->autoRequest(info->name(), 100);
             qDebug() << "auto request" << info->name();
         }
     }
+
+    // white: 255 128 40
 }
 //---------------------------------------------------------------------------

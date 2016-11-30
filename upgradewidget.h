@@ -50,6 +50,7 @@ public:
     UpgradeWidget(ObjnetMaster *onbMaster, QWidget *parent = 0);
 
     void load(QByteArray firmware);
+    static bool checkClass(const QByteArray &firmware, unsigned long cid);
 
 private slots:
     void onTimer();

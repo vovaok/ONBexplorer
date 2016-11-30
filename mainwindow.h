@@ -14,8 +14,8 @@
 
 #include "usbhidonbinterface.h"
 
-//#include "panel3d.h"
-//#include "graph2d.h"
+#include "graphwidget.h"
+
 
 #include "upgradewidget.h"
 
@@ -50,8 +50,7 @@ private:
 
     UpgradeWidget *upg;
 
-//    Graph2D *mGraph;
-//    QPanel3D *panel3d;
+    GraphWidget *mGraph;
 
     QComboBox *mPorts;
 
@@ -80,9 +79,6 @@ private:
     QString ba2str(const QByteArray &ba);
     int getRootId(ObjnetMaster *mas);
     ObjnetMaster *getMasterOfItem(QTreeWidgetItem *item);
-
-    QByteArray mFirmware;
-    int mFirmCnt;
 
 private slots:
     void onBtn();
@@ -117,9 +113,12 @@ private slots:
 
     void onPortChanged(QString portname);
 
-    void upgrade();
+    void upgrade(unsigned long classId);
 
     void onBindTest(int var);
+
+    void onDeviceMenu(QPoint p);
+    void onObjectMenu(QPoint p);
 };
 
 #endif // MAINWINDOW_H

@@ -72,28 +72,36 @@ void UpgradeWidget::load(QByteArray firmware)
         log->append("no app info supplied. abort");
         return;
     }
-    else
-    {
-        __appinfo_t__ *info = reinterpret_cast<__appinfo_t__*>(bin.data()+idx);
-        log->append(QString().sprintf("class id = 0x%08X", (unsigned int)info->cid));
-        log->append(QString().sprintf("version %d.%d, %s", info->ver >> 8, info->ver & 0xFF, info->timestamp));
-        log->append(QString().sprintf("burn count = %d", info->burncount));
-        mClass = info->cid;
-        info->length = sz;
-        info->checksum = 0;
-        unsigned long cs = 0;
-        unsigned long *data = reinterpret_cast<unsigned long*>(bin.data());
-        for (int i=0; i<sz/4; i++)
-            cs -= data[i];
-        info->checksum = cs;
-        log->append(QString().sprintf("checksum = 0x%08X", (unsigned int)info->checksum));
-    }
+
+    __appinfo_t__ *info = reinterpret_cast<__appinfo_t__*>(bin.data()+idx);
+    log->append(QString().sprintf("class id = 0x%08X", (unsigned int)info->cid));
+    log->append(QString().sprintf("version %d.%d, %s", info->ver >> 8, info->ver & 0xFF, info->timestamp));
+    log->append(QString().sprintf("burn count = %d", info->burncount));
+    mClass = info->cid;
+    info->length = sz;
+    info->checksum = 0;
+    unsigned long cs = 0;
+    unsigned long *data = reinterpret_cast<unsigned long*>(bin.data());
+    for (int i=0; i<sz/4; i++)
+        cs -= data[i];
+    info->checksum = cs;
+    log->append(QString().sprintf("checksum = 0x%08X", (unsigned int)info->checksum));
+
 
     QByteArray ba;
     ba.append(reinterpret_cast<const char*>(&mClass), 4);
     master->sendServiceRequest(aidUpgradeStart, true, ba);
     log->append(QString().sprintf("start upgrade devices with class = 0x%08X\n", (unsigned int)mClass));
     timer->start(1000);
+}
+
+bool UpgradeWidget::checkClass(const QByteArray &firmware, unsigned long cid)
+{
+    int idx = firmware.indexOf("__APPINFO__");
+    if (idx < 0)
+        return false;
+    const __appinfo_t__ *info = reinterpret_cast<const __appinfo_t__*>(firmware.data()+idx);
+    return (info->cid == cid);
 }
 
 void UpgradeWidget::onTimer()
