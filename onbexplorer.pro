@@ -28,11 +28,13 @@ win32: {
 SOURCES += main.cpp\
         mainwindow.cpp \
     upgradewidget.cpp \
-    graphwidget.cpp
+    graphwidget.cpp \
+    objtable.cpp
 
 HEADERS  += mainwindow.h \
     upgradewidget.h \
-    graphwidget.h
+    graphwidget.h \
+    objtable.h
 
 FORMS    += mainwindow.ui
 

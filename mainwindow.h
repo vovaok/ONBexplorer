@@ -11,12 +11,10 @@
 
 #include "objnetvirtualinterface.h"
 #include "objnetvirtualserver.h"
-
 #include "usbhidonbinterface.h"
 
+#include "objtable.h"
 #include "graphwidget.h"
-
-
 #include "upgradewidget.h"
 
 namespace Ui {
@@ -35,18 +33,15 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    QPushButton *btn, *btnUpgrade;
-    QPushButton *btnProto1, *btnProto2;
+    QPushButton *btnUpgrade;
     QPushButton *mOviServerBtn, *mLogEnableBtn, *btnResetStat;
-    QLineEdit *editId, *editData;
-    QLineEdit *editIdIn, *editDataIn;
     QTextEdit *editLog;
     QLabel *status, *status2, *status3;
     QTreeWidget *mTree;
     QMap<unsigned short, QTreeWidgetItem*> mItems;
-    QGroupBox *mInfoBox;//, *mObjBox;
+    QGroupBox *mInfoBox;
     QMap<QString, QLineEdit*> mEdits;
-    QTableWidget *mObjTable;
+    ObjTable *mObjTable;
 
     UpgradeWidget *upg;
 
@@ -58,20 +53,13 @@ private:
 
     QSerialPort *uart;
     SerialCan *can;
-    ObjnetMaster *master, *usbMaster, *oviMaster;
+    ObjnetMaster *canMaster, *usbMaster, *oviMaster;
     ObjnetDevice *device;
-
-    unsigned short mAdcValue;
-    QString strtest;
-    int testVar;
-    float tempEnc1[8];
-    float tempEnc2[8];
-    float tempEnc3[8];
 
     QElapsedTimer mEtimer;
 
     ObjnetVirtualServer *onbvs;
-    QVector<ObjnetVirtualInterface*> onb;
+    ObjnetVirtualInterface *onbvi;
 
     QMap<QString, QTextEdit*> mLogs;
 
@@ -80,14 +68,13 @@ private:
     int getRootId(ObjnetMaster *mas);
     ObjnetMaster *getMasterOfItem(QTreeWidgetItem *item);
 
+    void prepareDevice(ObjnetDevice *dev);
+
 private slots:
-    void onBtn();
-    void onBtn2();
-    void onBtnProto();
     void onItemClick(QTreeWidgetItem *item, int column);
-    void onCellChanged(int row, int col);
-    void onCellDblClick(int row, int col);
-    void onObjectReceive(QString name, QVariant value);
+//    void onCellChanged(int row, int col);
+//    void onCellDblClick(int row, int col);
+//    void onObjectReceive(QString name, QVariant value);
 
     void onMessage(ulong id, QByteArray &data);
     void onMessageSent(ulong id, QByteArray &data);
@@ -119,6 +106,8 @@ private slots:
 
     void onDeviceMenu(QPoint p);
     void onObjectMenu(QPoint p);
+
+    void setAutoRequestPeriod(unsigned long serial, QString objname, int period_ms);
 };
 
 #endif // MAINWINDOW_H

@@ -13,14 +13,6 @@ MainWindow::MainWindow(QWidget *parent) :
     setWindowTitle("ONB Explorer");
 //    resize(800, 500);
 
-    for(int i =0;i<8;i++)
-    {
-        tempEnc1[i]=0;
-        tempEnc2[i]=0;
-        tempEnc3[i]=0;
-
-    }
-
     uart = new QSerialPort();
     uart->setBaudRate(1000000);
     uart->setParity(QSerialPort::EvenParity);
@@ -54,9 +46,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
     connect(usbMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
-    onb << new ObjnetVirtualInterface("main");
-    oviMaster = new ObjnetMaster(onb.last());
+    onbvi = new ObjnetVirtualInterface("main");
+    oviMaster = new ObjnetMaster(onbvi);
     oviMaster->setName("main");
+    onbvi->setActive(true);
 
     connect(oviMaster, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
     connect(oviMaster, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
@@ -65,82 +58,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(oviMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
     connect(oviMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
-    //onb.last()->setActive(true);
-
-    onb << new ObjnetVirtualInterface("main");
-    ObjnetNode *n1 = new ObjnetNode(onb.last());
-    n1->setBusAddress(0xF);
-    n1->setName("vasya");
-    n1->setFullName("Vasiliy Alibabaevich");
-
-    ObjnetNode *n2;
-    for (int i=0; i<10; i++)
-    {
-        onb << new ObjnetVirtualInterface("main");
-        n2 = new ObjnetNode(onb.last());
-        n2->setBusAddress(i+1);
-        n2->setName("drive");
-        n2->setFullName("Motor controller");
-    }
-
-    onb << new ObjnetVirtualInterface("main");
-    n2 = new ObjnetNode(onb.last());
-    n2->setBusAddress(0xE);
-    n2->setName("arm");
-
-    onb << new ObjnetVirtualInterface("arm");
-    ObjnetMaster *masterArm = new ObjnetMaster(onb.last());
-    masterArm->setName("arm");
-    masterArm->connect(n2);
-    ObjnetNode *n3;
-    onb << new ObjnetVirtualInterface("arm");
-    n3 = new ObjnetNode(onb.last());
-    n3->setBusAddress(4);
-    n3->setName("shoulder");
-    onb << new ObjnetVirtualInterface("arm");
-    n3 = new ObjnetNode(onb.last());
-    n3->setBusAddress(5);
-    n3->setName("elbow");
-    onb << new ObjnetVirtualInterface("arm");
-    n3 = new ObjnetNode(onb.last());
-    n3->setBusAddress(6);
-    n3->setName("wrist");
-
-    onb << new ObjnetVirtualInterface("hand");
-    ObjnetMaster *masterHand = new ObjnetMaster(onb.last());
-    masterHand->connect(n3);
-    masterHand->setName("hand");
-    ObjnetNode *n4;
-    onb << new ObjnetVirtualInterface("hand");
-    n4 = new ObjnetNode(onb.last());
-    n4->setBusAddress(5);
-    n4->setName("fingers");
-    onb << new ObjnetVirtualInterface("hand");
-    n4 = new ObjnetNode(onb.last());
-    n4->setBusAddress(10);
-    n4->setName("sensors");
-
-
-    QVBoxLayout *netlay = new QVBoxLayout;
-    QMap<QString, QWidget*> netw;
-    QCheckBox *firstOviNode = 0L;
-    foreach (ObjnetVirtualInterface *ovi, onb)
-    {
-        QString key = ovi->netname();
-        if (!netw.contains(key))
-        {
-            QGroupBox *gb = new QGroupBox(key);
-            QHBoxLayout *gblay = new QHBoxLayout;
-            gb->setLayout(gblay);
-            netw[key] = gb;
-            netlay->addWidget(gb);
-        }
-        QCheckBox *chk = new QCheckBox;
-        connect(chk, SIGNAL(toggled(bool)), ovi, SLOT(setActive(bool)));
-        if (!firstOviNode)
-            firstOviNode = chk;
-        netw[key]->layout()->addWidget(chk);
-    }
 
     mPorts = new QComboBox();
     mPorts->setFixedWidth(100);
@@ -172,33 +89,10 @@ MainWindow::MainWindow(QWidget *parent) :
     mLogEnableBtn->setCheckable(true);
     ui->mainToolBar->addWidget(mLogEnableBtn);
 
-    btn = new QPushButton("Send");
-    btn->setFixedWidth(80);
-    connect(btn, SIGNAL(clicked()), this, SLOT(onBtn()));
-
     btnResetStat = new QPushButton("Reset stat");
     btnResetStat->setFixedWidth(80);
     connect(btnResetStat, SIGNAL(clicked()), this, SLOT(resetStat()));
     ui->mainToolBar->addWidget(btnResetStat);
-
-    btnProto1 = new QPushButton("Common");
-    btnProto1->setFixedWidth(100);
-    connect(btnProto1, SIGNAL(clicked()), this, SLOT(onBtnProto()));
-    btnProto2 = new QPushButton("Extended");
-    btnProto2->setFixedWidth(100);
-    connect(btnProto2, SIGNAL(clicked()), this, SLOT(onBtnProto()));
-
-    editId = new QLineEdit("01234567");
-    editId->setFixedWidth(80);
-    editData = new QLineEdit("1 2 3 4 5");
-    editData->setMinimumWidth(100);
-
-    editIdIn = new QLineEdit();
-    editIdIn->setFixedWidth(80);
-    editIdIn->setReadOnly(true);
-    editDataIn = new QLineEdit();
-    editDataIn->setMinimumWidth(100);
-    editDataIn->setReadOnly(true);
 
     editLog = new QTextEdit();
     editLog->setMinimumWidth(200);
@@ -208,6 +102,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     mTree = new QTreeWidget();
     mTree->setMinimumWidth(250);
+    mTree->setMinimumHeight(100);
     mTree->setAnimated(true);
     mTree->setColumnCount(4);
     QStringList labels;
@@ -230,16 +125,13 @@ MainWindow::MainWindow(QWidget *parent) :
     {
         QLineEdit *ed = new QLineEdit;
         ed->setReadOnly(true);
-        ed->setMinimumWidth(200);
+        ed->setMinimumWidth(210);
         mEdits[s] = ed;
         gblay->addRow(s, ed);
     }
     mInfoBox->setLayout(gblay);
 
-    mObjTable = new QTableWidget();//1, 2);
-    mObjTable->setMinimumWidth(372);
-    connect(mObjTable, SIGNAL(cellChanged(int,int)), SLOT(onCellChanged(int,int)));
-    connect(mObjTable, SIGNAL(cellDoubleClicked(int,int)), SLOT(onCellDblClick(int,int)));
+    mObjTable = new ObjTable();
 
     QStringList strings;
     strings << "<Usb>" << "0" << "0" << "FFFFFFFF";
@@ -251,43 +143,28 @@ MainWindow::MainWindow(QWidget *parent) :
     mTree->addTopLevelItem(item);
     item->setExpanded(true);
 
-    status = new QLabel("Disconnected");
+    status = new QLabel("");
     ui->statusBar->addWidget(status);
     status2 = new QLabel();
     ui->statusBar->addWidget(status2);
     status3 = new QLabel();
     ui->statusBar->addWidget(status3);
 
+    mGraph = new GraphWidget(this);
+    connect(mGraph, SIGNAL(periodChanged(unsigned long,QString,int)), SLOT(setAutoRequestPeriod(unsigned long,QString,int)));
+    QGroupBox *graphBox = new QGroupBox("Graph");
+    graphBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+    QVBoxLayout *graphLay = new QVBoxLayout;
+    graphLay->addWidget(mGraph);
+    graphBox->setLayout(graphLay);
+
     QGridLayout *glay = new QGridLayout;
-    QGroupBox *protoBox = new QGroupBox("Protocol");
-    QHBoxLayout *h0 = new QHBoxLayout();
-    h0->addWidget(btnProto1);
-    h0->addWidget(btnProto2);
-    protoBox->setLayout(h0);
-    QGroupBox *outBox = new QGroupBox("Out message");
-    QHBoxLayout *h1 = new QHBoxLayout();
-    h1->addWidget(new QLabel("Id"));
-    h1->addWidget(editId);
-    h1->addWidget(new QLabel("Data"));
-    h1->addWidget(editData);
-    h1->addWidget(btn);
-    outBox->setLayout(h1);
-    QGroupBox *inBox = new QGroupBox("In message");
-    QHBoxLayout *h2 = new QHBoxLayout();
-    h2->addWidget(new QLabel("Id"));
-    h2->addWidget(editIdIn);
-    h2->addWidget(new QLabel("Data"));
-    h2->addWidget(editDataIn);
-    inBox->setLayout(h2);
-
-    glay->addWidget(mTree, 0, 0, 2, 1);
-    glay->addWidget(outBox, 0, 1);
-    glay->addWidget(inBox, 1, 1);
-    glay->addLayout(netlay, 0, 2, 2, 1);
-    glay->addWidget(mInfoBox, 2, 0);
-    glay->addWidget(editLog, 2, 1);
-    glay->addWidget(mObjTable, 2, 2);
-
+    glay->setColumnStretch(1, 1);
+    glay->addWidget(mTree, 0, 0);
+    glay->addWidget(mInfoBox, 1, 0);
+    glay->addWidget(editLog, 2, 0, 1, 2);
+    glay->addWidget(graphBox, 0, 1, 2, 1);
+    glay->addWidget(mObjTable, 0, 2, 3, 1);
     ui->centralWidget->setLayout(glay);
 
     QTimer *timer = new QTimer(this);
@@ -297,20 +174,8 @@ MainWindow::MainWindow(QWidget *parent) :
     mEtimer.start();
 
 
-
-
-//    QVBoxLayout *vl2 = new QVBoxLayout();
-//    QWidget *widget =  new QWidget(this,Qt::Window|Qt::Tool);
-//    widget->setMinimumSize(400, 300);
-//    widget->show();
-
-
-    mGraph = new GraphWidget(this);
-
-
     mOviServerBtn->setChecked(true);
     onbvs->setEnabled(true);
-    firstOviNode->setChecked(true);
 
 //    QPushButton *b = new QPushButton("upgrade");
 //    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
@@ -321,42 +186,6 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
-//---------------------------------------------------------------------------
-
-void MainWindow::onBtn()
-{
-    bool ok;
-    ulong id = editId->text().toInt(&ok, 16);
-    if (!ok)
-        return;
-    QString strdata = editData->text().trimmed();
-    QByteArray data;
-    if (!strdata.isEmpty())
-    {
-        QStringList strbytes = strdata.split(' ');
-        foreach (QString strbyte, strbytes)
-        {
-            unsigned char byte = strbyte.toInt(&ok, 16);
-            if (!ok)
-                return;
-            data.append(byte);
-        }
-    }
-//    curdev = (id >> 24) & 0xF;
-    //can->sendMessage(id, data);
-    CommonMessage msg;
-    msg.setId(id);
-    msg.setData(data);
-    if (master)
-        master->objnetInterface()->write(msg);
-}
-
-void MainWindow::onBtn2()
-{
-    for (int i=0; i<30; i++)
-        onBtn();
-}
-
 //---------------------------------------------------------------------------
 
 void MainWindow::onMessage(ulong id, QByteArray &data)
@@ -371,8 +200,6 @@ void MainWindow::onMessage(ulong id, QByteArray &data)
         s.sprintf("%02X ", byte);
         strdata += s;
     }
-    editIdIn->setText(strid);
-    editDataIn->setText(strdata);
     logMessage(id, data);
 }
 
@@ -458,10 +285,7 @@ void MainWindow::logMessage(QString netname, CommonMessage &msg)
         else
             text = "<font color=blue>" + text + "</font>";
     }
-    editIdIn->setText(sid);
-    editDataIn->setText(sdata);
     editLog->append(text);
-//    qDebug() << text;
 }
 
 QString MainWindow::ba2str(const QByteArray &ba)
@@ -502,28 +326,9 @@ ObjnetMaster *MainWindow::getMasterOfItem(QTreeWidgetItem *item)
 }
 //---------------------------------------------------------------------------
 
-void MainWindow::onBtnProto()
-{
-    QPushButton *btn = qobject_cast<QPushButton*>(sender());
-    if (btn == btnProto1)
-    {
-        can->changeProtocolVersion(SerialCan::protoCommon);
-    }
-    else if (btn == btnProto2)
-    {
-        can->changeProtocolVersion(SerialCan::protoExtended);
-    }
-}
-
 void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
 {
     Q_UNUSED(column);
-    mObjTable->clear();
-    mObjTable->setRowCount(0);
-    //int rootId = item->data(0, Qt::UserRole+1).toInt();  
-
-//    if (item->parent() && mTree->indexOfTopLevelItem(item->parent()) == -1) // no direct connection of device
-//        qDebug() << "need request";
 
     ObjnetMaster *master = getMasterOfItem(item);
 
@@ -551,196 +356,97 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         mEdits["CPU info"]->setText(dev->cpuInfo());
         mEdits["Burn count"]->setText(QString().sprintf("%d", dev->burnCount()));
 
-        int cnt = dev->objectCount();
-        mObjTable->setColumnCount(4);
-        mObjTable->setRowCount(cnt);
-        mObjTable->setColumnWidth(0, 100);
-        mObjTable->setColumnWidth(1, 100);
-        mObjTable->setColumnWidth(2, 80);
-        mObjTable->setColumnWidth(3, 50);
-        QStringList objtablecolumns;
-        objtablecolumns << "name" << "value" << "type" << "flags";
-        mObjTable->setHorizontalHeaderLabels(objtablecolumns);
-        mObjTable->blockSignals(true);
-        for (int i=0; i<cnt; i++)
-        {
-            ObjectInfo *info = dev->objectInfo(i);
-            if (!info)
-                continue;
-            QString name = info->name();
-            mObjTable->setItem(i, 1, new QTableWidgetItem("n/a"));
-            QString wt = QMetaType::typeName(info->wType());
-            if (wt == "QString")
-                wt = "string";
-            else if (wt == "QByteArray")
-                wt = "common";
-            QString rt = QMetaType::typeName(info->rType());
-            if (rt == "QString")
-                rt = "string";
-            else if (rt == "QByteArray")
-                rt = "common";
-            unsigned char fla = info->flags();
-            QString typnam;
 
-
-            if (fla & ObjectInfo::Function)
-            {
-                typnam = wt + "(" + rt + ")";
-                mObjTable->setItem(i, 0, new QTableWidgetItem(name));
-                QPushButton *btn = new QPushButton(name);
-                mObjTable->setCellWidget(i, 0, btn);
-                if (fla & ObjectInfo::Read) // na samom dele Write, no tut naoborot)
-                    connect(btn, &QPushButton::clicked, [dev, name](){dev->sendObject(name);});
-                else
-                    connect(btn, &QPushButton::clicked, [dev, name](){dev->requestObject(name);});
-            }
-            else
-            {
-                if (fla & ObjectInfo::Dual)
-                    typnam = "r:"+wt+"/w:"+rt;
-                else if (fla & ObjectInfo::Read)
-                    typnam = rt;
-                else if (fla & ObjectInfo::Write)
-                    typnam = wt;
-
-                mObjTable->setItem(i, 0, new QTableWidgetItem(name));
-                dev->requestObject(name);
-            }
-
-            mObjTable->setItem(i, 2, new QTableWidgetItem(typnam));
-            QString flags = "-fdhsrwv";
-            for (int j=0; j<8; j++)
-                if (!(fla & (1<<j)))
-                    flags[7-j] = '-';
-            mObjTable->setItem(i, 3, new QTableWidgetItem(flags));
-        }
-        mObjTable->blockSignals(false);
-
-        mObjTable->setContextMenuPolicy(Qt::CustomContextMenu);
-        connect(mObjTable, SIGNAL(customContextMenuRequested(QPoint)), SLOT(onObjectMenu(QPoint)));
     }
     else
     {
-        device = 0L;
+        device = nullptr;
         mInfoBox->setTitle("Device info");
         foreach (QLineEdit *ed, mEdits)
             ed->clear();
     }
+
+    mObjTable->setDevice(device);
 }
 
-void MainWindow::onCellChanged(int row, int col)
-{
-    if (col != 1)
-        return;
-    if (device)
-    {
-        ObjectInfo *info = device->objectInfo(row);
-        QVariant val = mObjTable->item(row, col)->text();
-        if (info->rType() == ObjectInfo::Common)
-            val = QByteArray::fromHex(val.toByteArray());
-        else
-            val.convert(info->rType());
-        info->fromVariant(val);
-        if (info->flags() & ObjectInfo::Function)
-            return;
-        device->sendObject(info->name());
-    }
-}
-
-void MainWindow::onCellDblClick(int row, int col)
-{
-    Q_UNUSED(col);
-    QTableWidgetItem *item = mObjTable->item(row, 0);
-    if (mLogs.contains(item->text()))
-    {
-        mLogs[item->text()]->parentWidget()->show();
-        return;
-    }
-//    if (item->data(Qt::UserRole+3).isValid())
+//void MainWindow::onCellChanged(int row, int col)
+//{
+//    if (col != 1)
 //        return;
+//    if (device)
+//    {
+//        ObjectInfo *info = device->objectInfo(row);
+//        QVariant val = mObjTable->item(row, col)->text();
+//        if (info->rType() == ObjectInfo::Common)
+//            val = QByteArray::fromHex(val.toByteArray());
+//        else
+//            val.convert(info->rType());
+//        info->fromVariant(val);
+//        if (info->flags() & ObjectInfo::Function)
+//            return;
+//        device->sendObject(info->name());
+//    }
+//}
 
-    QWidget *dlg = new QWidget(this, Qt::Tool);
-    dlg->setWindowTitle(item->text());
-    QTextEdit *log = new QTextEdit(dlg);
-    QVBoxLayout *lay = new QVBoxLayout();
-    lay->addWidget(log);
-    dlg->setLayout(lay);
-    dlg->show();
-    //item->setData(Qt::UserRole + 3, QVariant().fromValue<QTextEdit*>(log));
-    mLogs[item->text()] = log;
-}
+//void MainWindow::onCellDblClick(int row, int col)
+//{
+//    Q_UNUSED(col);
+//    QTableWidgetItem *item = mObjTable->item(row, 0);
+//    if (mLogs.contains(item->text()))
+//    {
+//        mLogs[item->text()]->parentWidget()->show();
+//        return;
+//    }
+////    if (item->data(Qt::UserRole+3).isValid())
+////        return;
 
-void MainWindow::onObjectReceive(QString name, QVariant value)
-{
-    if (name == "App::incrementTest")
-    {
-        static float oldt = -1;
-        static float tf = 0;
-        float t1 = mEtimer.nsecsElapsed() * 1e-6;
-        float dt = t1 - oldt;
-        if (dt > 1000)
-            dt = 5;
-        if (oldt < 0)
-        {
-            tf = dt;
-        }
-        else
-        {
-            tf = 0.999*tf + 0.001*dt;
-            static int oval = 0;
-            static int errs = 0;
-            QString str = value.toString();
-            int idx = str.indexOf(' ');
-            int val = str.left(idx).toInt();
-            if (oval != val)
-            {
-                errs++;
-                oval = val;
-            }
-            oval++;
-            status3->setText(QString().sprintf("dt= %.2f ms, errs=%d", tf, errs));
-        }
-        oldt = t1;
+//    QWidget *dlg = new QWidget(this, Qt::Tool);
+//    dlg->setWindowTitle(item->text());
+//    QTextEdit *log = new QTextEdit(dlg);
+//    QVBoxLayout *lay = new QVBoxLayout();
+//    lay->addWidget(log);
+//    dlg->setLayout(lay);
+//    dlg->show();
+//    //item->setData(Qt::UserRole + 3, QVariant().fromValue<QTextEdit*>(log));
+//    mLogs[item->text()] = log;
+//}
 
+//void MainWindow::onObjectReceive(QString name, QVariant value)
+//{
+//    ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
 
-    }
+//    if (name == "App::incrementTest")
+//    {
+//        static float oldt = -1;
+//        static float tf = 0;
+//        float t1 = mEtimer.nsecsElapsed() * 1e-6;
+//        float dt = t1 - oldt;
+//        if (dt > 1000)
+//            dt = 5;
+//        if (oldt < 0)
+//        {
+//            tf = dt;
+//        }
+//        else
+//        {
+//            tf = 0.999*tf + 0.001*dt;
+//            static int oval = 0;
+//            static int errs = 0;
+//            QString str = value.toString();
+//            int idx = str.indexOf(' ');
+//            int val = str.left(idx).toInt();
+//            if (oval != val)
+//            {
+//                errs++;
+//                oval = val;
+//            }
+//            oval++;
+//            status3->setText(QString().sprintf("dt= %.2f ms, errs=%d", tf, errs));
+//        }
+//        oldt = t1;
+//    }
 
-    //qDebug() << "[MainWindow] object received:" << name << "=" << value;
-    for (int i=0; i<mObjTable->rowCount(); i++)
-    {
-        if (!mObjTable->item(i, 0))
-            continue;
-        QString nm = mObjTable->item(i, 0)->text();
-        if (nm == name)
-        {
-            QString val;
-#undef ByteArray
-            if (!value.isValid())
-                continue;
-            if (value.type() == QVariant::ByteArray)
-                val = value.toByteArray().toHex();
-            else// if (value.type() == QVariant::String)
-            {
-                if (static_cast<QMetaType::Type>(value.type()) == QMetaType::UChar)
-                    value = value.toInt();
-                if (static_cast<QMetaType::Type>(value.type()) == QMetaType::SChar)
-                    value = value.toInt();
-                val = value.toString();
-            }
-            mObjTable->blockSignals(true);
-            mObjTable->item(i, 1)->setText(val);
-            if (mLogs.contains(nm))
-                mLogs[nm]->append(val);
-
-            if (mObjTable->item(i, 0)->data(Qt::UserRole+4).toBool())
-            {
-                mGraph->addPoint(nm, value.toFloat());
-            }
-
-            mObjTable->blockSignals(false);
-        }
-    }
-}
+//}
 //---------------------------------------------------------------------------
 
 void MainWindow::onBoardConnect()
@@ -771,9 +477,6 @@ void MainWindow::resetStat()
 
 void MainWindow::onTimer()
 {
-    status->setText(QString::number(mAdcValue));
-    status2->setText(strtest);
-
     if (device)
     {
         for (int i=0; i<device->objectCount(); i++)
@@ -845,7 +548,9 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
                 qDebug() << "netAddress" << netAddress << "does not exist";
                 return;
             }
-            connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
+//            connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
+            connect(dev, SIGNAL(objectReceived(QString,QVariant)), mObjTable, SLOT(updateObject(QString,QVariant)));
+            connect(dev, SIGNAL(objectReceived(QString,QVariant)), mGraph, SLOT(updateObject(QString,QVariant)));
             connect(dev, SIGNAL(ready()), SLOT(onDevReady()));
             connect(dev, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
@@ -856,6 +561,10 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
             mItems[rootId+netAddress] = item;
             item->setExpanded(true);
             item->setDisabled(true);
+        }
+        else
+        {
+            prepareDevice(master->device(netAddress));
         }
     }
 
@@ -982,7 +691,7 @@ void MainWindow::onPortChanged(QString portname)
 
 void MainWindow::upgrade(unsigned long classId)
 {
-    master = oviMaster;
+    ObjnetMaster *master = oviMaster;
     if (master)
     {
         QStringList result;
@@ -1071,6 +780,20 @@ void MainWindow::onObjectMenu(QPoint p)
         menu.exec(mObjTable->mapToGlobal(p));
     }
 }
+
+void MainWindow::setAutoRequestPeriod(unsigned long serial, QString objname, int period_ms)
+{
+    ObjnetMaster *masters[2] = {usbMaster, oviMaster};
+    for (ObjnetMaster *master: masters)
+    {
+        ObjnetDevice *dev = master->deviceBySerial(serial);
+        if (dev)
+        {
+            dev->autoRequest(objname, period_ms);
+            return;
+        }
+    }
+}
 //---------------------------------------------------------------------------
 
 void MainWindow::onDevReady()
@@ -1080,6 +803,13 @@ void MainWindow::onDevReady()
     //dev->autoRequest("testString", 3);
     //dev->autoRequest("App::incrementTest", 5);
 
+    prepareDevice(dev);
+
+    // white: 255 128 40
+}
+
+void MainWindow::prepareDevice(ObjnetDevice *dev)
+{
     QTreeWidgetItem *item = mTree->currentItem();
     if (item)
     {
@@ -1097,10 +827,8 @@ void MainWindow::onDevReady()
         if (info->isVolatile())
         {
             dev->autoRequest(info->name(), 100);
-            qDebug() << "auto request" << info->name();
+            logMessage("<i>auto request of \"" + info->name() + "\"</i>");
         }
     }
-
-    // white: 255 128 40
 }
 //---------------------------------------------------------------------------
