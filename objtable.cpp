@@ -176,23 +176,36 @@ void ObjTable::startDrag(Qt::DropActions supportedActions)
     QTableWidgetItem *it = item(currentRow(), 0);
     int idx = it->data(Qt::UserRole).toInt();
 
-    QString mimetype = "application/x-onb-object";
-    if (!mDevice->objectInfo(idx)->isWritable()) // inverted interpretation of read/write again
-        mimetype = "application/x-onb-nonreadable";
-    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::Void)
-        mimetype = "application/x-onb-object-void";
-    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::Common)
-        mimetype = "application/x-onb-object-common";
-    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::String)
-        mimetype = "application/x-onb-object-string";
-
-    QByteArray ba = QByteArray::number((unsigned int)mDevice->serial(), 16) + "." + it->text().toLocal8Bit();
     QMimeData *mimeData = new QMimeData;
-    mimeData->setData(mimetype, ba);
-    mimeData->setData("application/x-onb-object-name", it->text().toLocal8Bit());
+
+//    QString mimetype = "application/x-onb-object";
+//    if (!mDevice->objectInfo(idx)->isWritable()) // inverted interpretation of read/write again
+//        mimetype = "application/x-onb-nonreadable";
+//    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::Void)
+//        mimetype = "application/x-onb-object-void";
+//    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::Common)
+//        mimetype = "application/x-onb-object-common";
+//    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::String)
+//        mimetype = "application/x-onb-object-string";
+
+//    QByteArray ba;
+//    mDevice->objectInfo(idx)->description().read(ba);
+//
+//    mimeData->setData("application/x-onb-object-desc", ba);
+//    mimeData->setData("application/x-onb-object-name", it->text().toLocal8Bit());
+
+//    int wcnt = mDevice->objectInfo(idx)->wCount();
+//    if (wcnt > 1)
+//    {
+//        QByteArray baSize(reinterpret_cast<const char*>(&wcnt), sizeof(int));
+//        mimeData->setData("application/x-onb-object-array-size", baSize);
+//    }
 
     QByteArray devptr(reinterpret_cast<const char*>(&mDevice), 4);
     mimeData->setData("application/x-onb-device", devptr);
+    ObjectInfo *objinfo = mDevice->objectInfo(idx);
+    QByteArray objptr(reinterpret_cast<const char*>(&objinfo), 4);
+    mimeData->setData("application/x-onb-object", objptr);
 
     QDrag *drag = new QDrag(this);
     drag->setMimeData(mimeData);

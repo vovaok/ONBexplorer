@@ -10,6 +10,7 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QSpinBox>
+#include <QCheckBox>
 
 using namespace Objnet;
 
@@ -24,6 +25,9 @@ private:
     QMap<unsigned long, QString> mDevices; // serial -> name[mac]
     QMap<unsigned long, QStringList> mVarNames;
     QFormLayout *mNamesLay;
+    QVector<QColor> mColors;
+    int mCurColor;
+    QColor nextColor();
 
     QPushButton *mClearBtn;
 
@@ -32,7 +36,7 @@ private:
     void addPoint(QString name, float val);
     void removeGraph(QString name);
 
-    void addObjname(unsigned long serial, QString objname);
+    void addObjname(unsigned long serial, QString objname, int childCount=0);
     void removeObjname(unsigned long serial, QString objname);
     int getRow(unsigned long serial, QString objname);
 
