@@ -53,6 +53,7 @@ signals:
 
 public slots:
     void updateObject(QString name, QVariant value);
+    void onAutoRequestAccepted(QString objname, int periodMs);
 };
 
 #endif // GRAPHWIDGET_H

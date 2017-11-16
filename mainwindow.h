@@ -108,6 +108,7 @@ private slots:
     void onObjectMenu(QPoint p);
 
     void setAutoRequestPeriod(unsigned long serial, QString objname, int period_ms);
+    void onAutoRequestAccepted(QString objname, int periodMs);
 };
 
 #endif // MAINWINDOW_H

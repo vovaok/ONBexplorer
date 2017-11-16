@@ -21,9 +21,9 @@ GraphWidget::GraphWidget(QWidget *parent) :
     mNamesLay = new QFormLayout;
 
     QSpinBox *pointLimitSpin = new QSpinBox();
-    pointLimitSpin->setRange(0, 10000);
-    pointLimitSpin->setSingleStep(100);
-    connect(pointLimitSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int val){mGraph->setPointLimit(val);});
+    pointLimitSpin->setRange(0, 100);
+    pointLimitSpin->setSingleStep(1);
+    connect(pointLimitSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int val){mGraph->setDataWindowWidth(val);});
 
     QGridLayout *lay = new QGridLayout;
     setLayout(lay);
@@ -33,7 +33,7 @@ GraphWidget::GraphWidget(QWidget *parent) :
     lay->addWidget(mScene, 0, 1, 3, 1);
     QGridLayout *vlay = new QGridLayout;
     lay->addLayout(vlay, 2, 0);
-    vlay->addWidget(new QLabel("Point limit:"), 0, 0);
+    vlay->addWidget(new QLabel("Time window, s:"), 0, 0);
     vlay->addWidget(pointLimitSpin, 0, 1);
     vlay->addWidget(mClearBtn, 1, 0, 1, 2);
     lay->setColumnStretch(1, 1);
@@ -151,13 +151,13 @@ void GraphWidget::addObjname(unsigned long serial, QString objname, int childCou
 
     QSpinBox *spin = new QSpinBox();
     spin->setRange(5, 1000);
-    spin->setValue(100);
+    //spin->setValue(100);
     spin->setFixedWidth(60);
     connect(spin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int val){emit periodChanged(serial, objname, val);});
 
     QPushButton *removeBtn = new QPushButton("×");
     removeBtn->setFixedSize(16, 16);
-    connect(removeBtn, &QPushButton::clicked, [=](){removeObjname(serial, objname);});
+    connect(removeBtn, &QPushButton::clicked, [=](){removeObjname(serial, objname); emit periodChanged(serial, objname, 100);});
 
 //    mNamesLay->addWidget(chk, row, 0);
 //    mNamesLay->addWidget(lbl, row, 1);
@@ -196,7 +196,7 @@ void GraphWidget::addObjname(unsigned long serial, QString objname, int childCou
 
     mGraph->setBounds();
 
-    emit periodChanged(serial, objname, spin->value());
+    emit periodChanged(serial, objname, -1);
 }
 
 void GraphWidget::removeObjname(unsigned long serial, QString objname)
@@ -247,14 +247,11 @@ int GraphWidget::getRow(unsigned long serial, QString objname)
         if (spanItem && spanItem->widget())
         {
             if (spanItem->widget()->property("serial").toInt() == serial)
-            {
-                if (!devfound)
-                    devfound = true;
-                else
-                    return row;
-            }
+                devfound = true;
+            else if (devfound)
+                return row;
         }
-        else if (labelItem && labelItem->widget())
+        else if (devfound && labelItem && labelItem->widget())
         {
             if (labelItem->widget()->property("objname") == objname)
                 return row;
@@ -298,6 +295,29 @@ void GraphWidget::updateObject(QString name, QVariant value)
                 {
                     addPoint(graphname+"["+QString::number(i)+"]", list[i].toFloat());
                 }
+            }
+        }
+    }
+}
+
+void GraphWidget::onAutoRequestAccepted(QString objname, int periodMs)
+{
+    ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
+    int ser = dev->serial();
+    if (mDevices.contains(ser))
+    {
+        if (mVarNames[ser].contains(objname))
+        {
+            int row = getRow(ser, objname);
+            QLayoutItem *fieldItem = mNamesLay->itemAt(row, QFormLayout::FieldRole);
+            if (fieldItem)
+            {
+                QSpinBox *spin = qobject_cast<QSpinBox*>(fieldItem->layout()->itemAt(0)->widget());
+                spin->blockSignals(true);
+                if (!periodMs)
+                    periodMs = 100;
+                spin->setValue(periodMs);
+                spin->blockSignals(false);
             }
         }
     }

@@ -177,6 +177,8 @@ MainWindow::MainWindow(QWidget *parent) :
     mOviServerBtn->setChecked(true);
     onbvs->setEnabled(true);
 
+    mLogEnableBtn->setChecked(true);
+
 //    QPushButton *b = new QPushButton("upgrade");
 //    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
 //    ui->mainToolBar->addWidget(b);
@@ -356,7 +358,16 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         mEdits["CPU info"]->setText(dev->cpuInfo());
         mEdits["Burn count"]->setText(QString().sprintf("%d", dev->burnCount()));
 
-
+        for (int i=0; i<dev->objectCount(); i++)
+        {
+            ObjectInfo *info = dev->objectInfo(i);
+            if (!info)
+                continue;
+            if (info->isVolatile())
+            {
+                dev->autoRequest(info->name(), -1); // request autoRequest
+            }
+        }
     }
     else
     {
@@ -551,6 +562,8 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 //            connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mObjTable, SLOT(updateObject(QString,QVariant)));
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mGraph, SLOT(updateObject(QString,QVariant)));
+            connect(dev, SIGNAL(autoRequestAccepted(QString,int)), SLOT(onAutoRequestAccepted(QString,int)));
+            connect(dev, SIGNAL(autoRequestAccepted(QString,int)), mGraph, SLOT(onAutoRequestAccepted(QString,int)));
             connect(dev, SIGNAL(ready()), SLOT(onDevReady()));
             connect(dev, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
@@ -656,6 +669,19 @@ void MainWindow::onServiceMessageAccepted(unsigned char netAddress, SvcOID oid, 
             break;
 
           default:;
+        }
+    }
+}
+
+void MainWindow::onAutoRequestAccepted(QString objname, int periodMs)
+{
+    ObjnetDevice *dev = qobject_cast<ObjnetDevice*>(sender());
+    if (dev)
+    {
+        if (!periodMs)
+        {
+            dev->autoRequest(objname, 100);
+            logMessage("<i>auto request of \"" + dev->name() + "." + objname + "\"</i>");
         }
     }
 }
@@ -800,8 +826,6 @@ void MainWindow::onDevReady()
 {
     ObjnetDevice *dev = qobject_cast<ObjnetDevice*>(sender());
     logMessage("device ready: " + dev->name());
-    //dev->autoRequest("testString", 3);
-    //dev->autoRequest("App::incrementTest", 5);
 
     prepareDevice(dev);
 
@@ -819,16 +843,16 @@ void MainWindow::prepareDevice(ObjnetDevice *dev)
             onItemClick(item, 0);
     }
 
-    for (int i=0; i<dev->objectCount(); i++)
-    {
-        ObjectInfo *info = dev->objectInfo(i);
-        if (!info)
-            continue;
-        if (info->isVolatile())
-        {
-            dev->autoRequest(info->name(), 100);
-            logMessage("<i>auto request of \"" + info->name() + "\"</i>");
-        }
-    }
+//    for (int i=0; i<dev->objectCount(); i++)
+//    {
+//        ObjectInfo *info = dev->objectInfo(i);
+//        if (!info)
+//            continue;
+//        if (info->isVolatile())
+//        {
+//            dev->autoRequest(info->name(), 100);
+//            logMessage("<i>auto request of \"" + info->name() + "\"</i>");
+//        }
+//    }
 }
 //---------------------------------------------------------------------------
