@@ -17,7 +17,7 @@ CONFIG += c++11
 
 COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/onb/onb.pri)
-include ($$COMPONENTS/panel3d/qpanel3d.pri)
+include ($$COMPONENTS/panel3d/panel3d.pri)
 
 win32: {
     CONFIG(release,debug|release) {
