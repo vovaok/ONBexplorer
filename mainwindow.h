@@ -36,6 +36,7 @@ private:
     QPushButton *btnUpgrade;
     QPushButton *mOviServerBtn, *mLogEnableBtn, *btnResetStat;
     QTextEdit *editLog;
+    QCheckBox *chkSvcOnly, *chkSuppressPolling;
     QLabel *status, *status2, *status3;
     QTreeWidget *mTree;
     QMap<unsigned short, QTreeWidgetItem*> mItems;

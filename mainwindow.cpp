@@ -99,6 +99,19 @@ MainWindow::MainWindow(QWidget *parent) :
 //    editLog->setFontFamily("Courier New");
 //    editLog->setReadOnly(true);
 
+    chkSvcOnly = new QCheckBox("Svc msg only");
+    chkSuppressPolling = new QCheckBox("Suppress poll msg");
+
+    QGroupBox *logBox = new QGroupBox("Log");
+    QVBoxLayout *logvlay = new QVBoxLayout;
+    logBox->setLayout(logvlay);
+    QHBoxLayout *loghlay = new QHBoxLayout;
+    logvlay->addLayout(loghlay);
+    logvlay->addWidget(editLog);
+    loghlay->addWidget(chkSvcOnly);
+    loghlay->addWidget(chkSuppressPolling);
+    loghlay->addStretch(1);
+
 
     mTree = new QTreeWidget();
     mTree->setMinimumWidth(250);
@@ -158,11 +171,12 @@ MainWindow::MainWindow(QWidget *parent) :
     graphLay->addWidget(mGraph);
     graphBox->setLayout(graphLay);
 
+
     QGridLayout *glay = new QGridLayout;
     glay->setColumnStretch(1, 1);
     glay->addWidget(mTree, 0, 0);
     glay->addWidget(mInfoBox, 1, 0);
-    glay->addWidget(editLog, 2, 0, 1, 2);
+    glay->addWidget(logBox, 2, 0, 1, 2);
     glay->addWidget(graphBox, 0, 1, 2, 1);
     glay->addWidget(mObjTable, 0, 2, 3, 1);
     ui->centralWidget->setLayout(glay);
@@ -260,6 +274,13 @@ void MainWindow::logMessage(ulong id, QByteArray &data, bool dir)
 void MainWindow::logMessage(QString netname, CommonMessage &msg)
 {
     if (!mLogEnableBtn->isChecked())
+        return;
+
+    bool isSvc = msg.rawId() & 0x00800000;
+    if (chkSvcOnly->isChecked() && !isSvc)
+        return;
+
+    if (chkSuppressPolling->isChecked() && (msg.rawId() == 0x00800000 || msg.localId().oid == svcEcho))
         return;
 
     QString text;
@@ -816,6 +837,7 @@ void MainWindow::setAutoRequestPeriod(unsigned long serial, QString objname, int
         if (dev)
         {
             dev->autoRequest(objname, period_ms);
+            logMessage("<i>auto request of \"" + dev->name() + "." + objname + "\" with period, ms:"+QString::number(period_ms)+"</i>");
             return;
         }
     }
