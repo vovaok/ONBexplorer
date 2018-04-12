@@ -191,7 +191,7 @@ MainWindow::MainWindow(QWidget *parent) :
     mOviServerBtn->setChecked(true);
     onbvs->setEnabled(true);
 
-    mLogEnableBtn->setChecked(true);
+//    mLogEnableBtn->setChecked(true);
 
 //    QPushButton *b = new QPushButton("upgrade");
 //    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
@@ -583,6 +583,7 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 //            connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mObjTable, SLOT(updateObject(QString,QVariant)));
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mGraph, SLOT(updateObject(QString,QVariant)));
+            connect(dev, SIGNAL(timedObjectReceived(QString,unsigned long,QVariant)), mGraph, SLOT(updateTimedObject(QString,unsigned long,QVariant)));
             connect(dev, SIGNAL(autoRequestAccepted(QString,int)), SLOT(onAutoRequestAccepted(QString,int)));
             connect(dev, SIGNAL(autoRequestAccepted(QString,int)), mGraph, SLOT(onAutoRequestAccepted(QString,int)));
             connect(dev, SIGNAL(ready()), SLOT(onDevReady()));
@@ -836,7 +837,9 @@ void MainWindow::setAutoRequestPeriod(unsigned long serial, QString objname, int
         ObjnetDevice *dev = master->deviceBySerial(serial);
         if (dev)
         {
-            dev->autoRequest(objname, period_ms);
+//            dev->autoRequest(objname, period_ms);
+//            logMessage("<i>auto request of \"" + dev->name() + "." + objname + "\" with period, ms:"+QString::number(period_ms)+"</i>");
+            dev->timedRequest(objname, period_ms);
             logMessage("<i>auto request of \"" + dev->name() + "." + objname + "\" with period, ms:"+QString::number(period_ms)+"</i>");
             return;
         }

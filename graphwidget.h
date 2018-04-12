@@ -30,6 +30,8 @@ private:
     QColor nextColor();
 
     QPushButton *mClearBtn;
+    int mTimestamp0;
+    float mTime;
 
     void setupScene();
 
@@ -53,6 +55,7 @@ signals:
 
 public slots:
     void updateObject(QString name, QVariant value);
+    void updateTimedObject(QString name, unsigned long timestamp, QVariant value);
     void onAutoRequestAccepted(QString objname, int periodMs);
 };
 

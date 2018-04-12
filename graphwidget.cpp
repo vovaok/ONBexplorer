@@ -2,7 +2,9 @@
 
 GraphWidget::GraphWidget(QWidget *parent) :
     QWidget(parent),
-    mCurColor(0)
+    mCurColor(0),
+    mTimestamp0(0),
+    mTime(0)
 {
     setAcceptDrops(true);
 
@@ -150,7 +152,7 @@ void GraphWidget::addObjname(unsigned long serial, QString objname, int childCou
     chk->setProperty("children", childCount);
 
     QSpinBox *spin = new QSpinBox();
-    spin->setRange(5, 1000);
+    spin->setRange(1, 1000);
     //spin->setValue(100);
     spin->setFixedWidth(60);
     connect(spin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int val){emit periodChanged(serial, objname, val);});
@@ -294,6 +296,33 @@ void GraphWidget::updateObject(QString name, QVariant value)
                 for (int i=0; i<list.size(); i++)
                 {
                     addPoint(graphname+"["+QString::number(i)+"]", list[i].toFloat());
+                }
+            }
+        }
+    }
+}
+
+void GraphWidget::updateTimedObject(QString name, unsigned long timestamp, QVariant value)
+{
+    ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
+    int ser = dev->serial();
+    if (mDevices.contains(ser))
+    {
+        if (mVarNames[ser].contains(name))
+        {
+            if (!mTimestamp0)
+                mTimestamp0 = timestamp;
+            mTime = (timestamp - mTimestamp0) * 0.001f;
+
+            QString graphname = mDevices[ser] + "." + name;
+            QVariantList list = value.toList();
+            if (list.isEmpty())
+                mGraph->addPoint(graphname, mTime, value.toFloat());
+            else
+            {
+                for (int i=0; i<list.size(); i++)
+                {
+                    mGraph->addPoint(graphname+"["+QString::number(i)+"]", mTime, list[i].toFloat());
                 }
             }
         }
