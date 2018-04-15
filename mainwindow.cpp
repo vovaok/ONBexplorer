@@ -46,7 +46,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
     connect(usbMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
-    onbvi = new ObjnetVirtualInterface("main");
+//    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
+    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
     oviMaster = new ObjnetMaster(onbvi);
     oviMaster->setName("main");
     onbvi->setActive(true);
@@ -133,7 +134,7 @@ MainWindow::MainWindow(QWidget *parent) :
     mInfoBox = new QGroupBox("Device info");
     QFormLayout *gblay = new QFormLayout;
     QStringList editnames;
-    editnames << "Net address" << "Class ID" << "Name" << "Full name" << "Serial" << "Version" << "Build date" << "CPU info" << "Burn count";
+    editnames << "Net address" << "Class ID" << "Name" << "Full name" << "Serial" << "Version" << "Build date" << "CPU info" << "Burn count" << "Bus type";
     foreach (QString s, editnames)
     {
         QLineEdit *ed = new QLineEdit;
@@ -188,10 +189,10 @@ MainWindow::MainWindow(QWidget *parent) :
     mEtimer.start();
 
 
-    mOviServerBtn->setChecked(true);
-    onbvs->setEnabled(true);
+//    mOviServerBtn->setChecked(true);
+//    onbvs->setEnabled(true);
 
-    mLogEnableBtn->setChecked(true);
+//    mLogEnableBtn->setChecked(true);
 
 //    QPushButton *b = new QPushButton("upgrade");
 //    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
@@ -378,6 +379,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         mEdits["Build date"]->setText(dev->buildDate());
         mEdits["CPU info"]->setText(dev->cpuInfo());
         mEdits["Burn count"]->setText(QString().sprintf("%d", dev->burnCount()));
+        mEdits["Bus type"]->setText(dev->busTypeName());
 
         for (int i=0; i<dev->objectCount(); i++)
         {

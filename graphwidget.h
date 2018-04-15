@@ -1,16 +1,16 @@
 #ifndef GRAPHWIDGET_H
 #define GRAPHWIDGET_H
 
-#include <QWidget>
-#include <QGridLayout>
-#include <QPushButton>
+#include <QtWidgets>
+//#include <QGridLayout>
+//#include <QPushButton>
 #include "panel3d.h"
 #include "graph2d.h"
 #include "objnetdevice.h"
-#include <QFormLayout>
-#include <QLabel>
-#include <QSpinBox>
-#include <QCheckBox>
+//#include <QFormLayout>
+//#include <QLabel>
+//#include <QSpinBox>
+//#include <QCheckBox>
 
 using namespace Objnet;
 
