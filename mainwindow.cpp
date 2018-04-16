@@ -738,9 +738,8 @@ void MainWindow::onPortChanged(QString portname)
     }
 }
 
-void MainWindow::upgrade(unsigned long classId)
+void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId)
 {
-    ObjnetMaster *master = oviMaster;
     if (master)
     {
         QStringList result;
@@ -793,10 +792,12 @@ void MainWindow::onDeviceMenu(QPoint p)
 //        if (cid == 0xFFFFFFFF)
 //            return;
 
+        ObjnetMaster *master = getMasterOfItem(item);
+
         QAction *act1 = new QAction("Upgrade "+item->text(0)+" ("+QString::number(netaddr)+")", this);
         connect(act1, &QAction::triggered, [=](){qDebug() << "upgrade device with address" << netaddr;});
         QAction *act2 = new QAction("Upgrade all of "+item->text(0)+" ("+item->text(3)+")", this);
-        connect(act2, &QAction::triggered, [=](){this->upgrade(cid);});
+        connect(act2, &QAction::triggered, [=](){this->upgrade(master, cid);});
         QMenu menu(this);
         //menu.addAction(act1);
         menu.addAction(act2);

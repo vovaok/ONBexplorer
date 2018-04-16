@@ -101,7 +101,7 @@ private slots:
 
     void onPortChanged(QString portname);
 
-    void upgrade(unsigned long classId);
+    void upgrade(ObjnetMaster *master, unsigned long classId);
 
     void onBindTest(int var);
 
