@@ -46,7 +46,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
     connect(usbMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
-    onbvi = new ObjnetVirtualInterface("main");
+//    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
+    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
     oviMaster = new ObjnetMaster(onbvi);
     oviMaster->setName("main");
     onbvi->setActive(true);
@@ -133,7 +134,7 @@ MainWindow::MainWindow(QWidget *parent) :
     mInfoBox = new QGroupBox("Device info");
     QFormLayout *gblay = new QFormLayout;
     QStringList editnames;
-    editnames << "Net address" << "Class ID" << "Name" << "Full name" << "Serial" << "Version" << "Build date" << "CPU info" << "Burn count";
+    editnames << "Net address" << "Class ID" << "Name" << "Full name" << "Serial" << "Version" << "Build date" << "CPU info" << "Burn count" << "Bus type";
     foreach (QString s, editnames)
     {
         QLineEdit *ed = new QLineEdit;
@@ -188,8 +189,8 @@ MainWindow::MainWindow(QWidget *parent) :
     mEtimer.start();
 
 
-    mOviServerBtn->setChecked(true);
-    onbvs->setEnabled(true);
+//    mOviServerBtn->setChecked(true);
+//    onbvs->setEnabled(true);
 
 //    mLogEnableBtn->setChecked(true);
 
@@ -378,6 +379,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         mEdits["Build date"]->setText(dev->buildDate());
         mEdits["CPU info"]->setText(dev->cpuInfo());
         mEdits["Burn count"]->setText(QString().sprintf("%d", dev->burnCount()));
+        mEdits["Bus type"]->setText(dev->busTypeName());
 
         for (int i=0; i<dev->objectCount(); i++)
         {
@@ -737,9 +739,8 @@ void MainWindow::onPortChanged(QString portname)
     }
 }
 
-void MainWindow::upgrade(unsigned long classId)
+void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId)
 {
-    ObjnetMaster *master = oviMaster;
     if (master)
     {
         QStringList result;
@@ -792,10 +793,12 @@ void MainWindow::onDeviceMenu(QPoint p)
 //        if (cid == 0xFFFFFFFF)
 //            return;
 
+        ObjnetMaster *master = getMasterOfItem(item);
+
         QAction *act1 = new QAction("Upgrade "+item->text(0)+" ("+QString::number(netaddr)+")", this);
         connect(act1, &QAction::triggered, [=](){qDebug() << "upgrade device with address" << netaddr;});
         QAction *act2 = new QAction("Upgrade all of "+item->text(0)+" ("+item->text(3)+")", this);
-        connect(act2, &QAction::triggered, [=](){this->upgrade(cid);});
+        connect(act2, &QAction::triggered, [=](){this->upgrade(master, cid);});
         QMenu menu(this);
         //menu.addAction(act1);
         menu.addAction(act2);
