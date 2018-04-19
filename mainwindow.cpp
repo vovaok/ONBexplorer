@@ -189,8 +189,8 @@ MainWindow::MainWindow(QWidget *parent) :
     mEtimer.start();
 
 
-//    mOviServerBtn->setChecked(true);
-//    onbvs->setEnabled(true);
+    mOviServerBtn->setChecked(true);
+    onbvs->setEnabled(true);
 
 //    mLogEnableBtn->setChecked(true);
 
@@ -515,7 +515,7 @@ void MainWindow::onTimer()
     {
         for (int i=0; i<device->objectCount(); i++)
         {
-            ObjectInfo *info = device->objectInfo(i);
+//            ObjectInfo *info = device->objectInfo(i);
 //            if (info->flags() & ObjectInfo::Volatile)
 //                device->requestObject(info->name());
         }

@@ -1,7 +1,7 @@
 #include "upgradewidget.h"
 
 UpgradeWidget::UpgradeWidget(ObjnetMaster *onbMaster, QWidget *parent) : QWidget(parent, Qt::Tool),
-    master(onbMaster), state(sIdle), mDevCount(0), mCurDevCount(0), sz(0), cnt(0), pageDone(false), pageTransferred(false), pageRepeat(false)
+    master(onbMaster), state(sIdle), mDevCount(0), mCurDevCount(0), sz(0), cnt(0), pagesz(0), pageDone(false), pageTransferred(false), pageRepeat(false)
 {
     setWindowTitle("Upgrade");
     timer = new QTimer(this);
@@ -76,8 +76,9 @@ void UpgradeWidget::load(QByteArray firmware)
     __appinfo_t__ *info = reinterpret_cast<__appinfo_t__*>(bin.data()+idx);
     log->append(QString().sprintf("class id = 0x%08X", (unsigned int)info->cid));
     log->append(QString().sprintf("version %d.%d, %s", info->ver >> 8, info->ver & 0xFF, info->timestamp));
-    log->append(QString().sprintf("burn count = %d", info->burncount));
+    log->append(QString().sprintf("page size = %d", info->pageSize));
     mClass = info->cid;
+    pagesz = info->pageSize;
     info->length = sz;
     info->checksum = 0;
     unsigned long cs = 0;
@@ -128,46 +129,61 @@ void UpgradeWidget::onTimer()
     {
         if (mCurDevCount >= mDevCount)
         {
+            mCurDevCount = 0;
             log->append("all of devices are ready");
+            setPage(0);
             state = sWork;
         }
     }
     else if (state == sWork)
     {
-        for (int i=0; i<32; i++)
+        if (pagesz < 8) // backwards compatibility
+            pagesz = 2048;
+
+        int seqcnt = pagesz >> 3;
+        for (int i=0; i<seqcnt; i++)
         {
             if (pageRepeat && cnt)
-                cnt -= (1<<11);
+                cnt -= pagesz;
 
             QByteArray ba = bin.mid(cnt, 8);
-            int page = cnt >> 11;
-            int seq = (cnt >> 3) & 0xFF;
+            int page = cnt / pagesz;
+            int seq = (cnt >> 3) & (seqcnt - 1);
 
-            if ((!seq && !pageDone) || pageRepeat)
+            if (pageTransferred)
             {
-                pageTransferred = true;
-                mCurDevCount = 0;
-                QByteArray ba2;
-                ba2.append(reinterpret_cast<const char*>(&page), 4);
-                log->append("page " + QString::number(page) + " of " + QString::number(sz >> 11)+" ...");
-                master->sendServiceRequest(aidUpgradeSetPage, true, ba2);
-                timer->stop();
+                pageTransferred = false;
+                setPage(page);
                 return;
             }
 
+//            if ((!seq && !pageDone) || pageRepeat)
+//            {
+//                if (!pageTransferred)
+//                {
+//                    pageTransferred = true;
+//                    mCurDevCount = 0;
+//                    timer->setInterval(500);
+//                    return;
+//                }
+
+////                    timer->stop();
+//                pageDone = true;
+//                return;
+//            }
+
             pageDone = false;
             pageRepeat = false;
-
-            //                log->moveCursor(QTextCursor::End);
-            //                log->insertPlainText(".");
-            //                log->moveCursor(QTextCursor::End);
 
             master->sendUpgrageData(seq, ba);
             cnt += ba.size();
             pb->setValue(cnt);
 
-            if (seq == 0xFF)
+            if (seq == seqcnt - 1) // last chunk
+            {
                 timer->setInterval(100);
+                pageTransferred = true;
+            }
 
             if (cnt >= sz)
             {
@@ -212,6 +228,15 @@ void UpgradeWidget::start()
     timer->start(100);
 }
 
+void UpgradeWidget::setPage(int page)
+{
+    QByteArray ba2;
+    ba2.append(reinterpret_cast<const char*>(&page), 4);
+    log->append("page " + QString::number(page) + " of " + QString::number(sz / pagesz)+" ...");
+    master->sendServiceRequest(aidUpgradeSetPage, true, ba2);
+}
+
+
 void UpgradeWidget::onGlobalMessage(unsigned char aid)
 {
     aid &= 0x3F;
@@ -224,18 +249,15 @@ void UpgradeWidget::onGlobalMessage(unsigned char aid)
             log->insertPlainText(" success");
             log->moveCursor(QTextCursor::End);
             pageDone = true;
-            pageTransferred = false;
             timer->start(30);
         }
     }
-    else if (aid == aidUpgradeRepeat && (pageTransferred || !cnt))
+    else if (aid == aidUpgradeRepeat)// && (pageTransferred || !cnt))
     {
         log->moveCursor(QTextCursor::End);
         log->insertPlainText(" FAIL! repeat page");
         log->moveCursor(QTextCursor::End);
         pageRepeat = true;
-        pageDone = true;
-        pageTransferred = false;
         timer->start(30);
     }
     else if (aid == aidUpgradeAccepted)

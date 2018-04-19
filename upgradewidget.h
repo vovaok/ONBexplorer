@@ -17,7 +17,7 @@ typedef struct
     char const pre[12];
     unsigned long cid;
     unsigned short ver;
-    unsigned short burncount;
+    unsigned short pageSize;
     unsigned long length;
     unsigned long checksum;
     char timestamp[25];
@@ -40,8 +40,11 @@ private:
     enum {sIdle, sStarted, sWork, sFinish} state;
     int mDevCount, mCurDevCount;
     int sz, cnt;
+    int pagesz;
     unsigned long mClass;
     bool pageDone, pageTransferred, pageRepeat;
+
+    void setPage(int page);
 
 protected:
     void closeEvent(QCloseEvent *e) override;
