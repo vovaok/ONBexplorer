@@ -140,58 +140,41 @@ void UpgradeWidget::onTimer()
         if (pagesz < 8) // backwards compatibility
             pagesz = 2048;
 
-        int seqcnt = pagesz >> 3;
-        for (int i=0; i<seqcnt; i++)
+        if (pageRepeat && cnt)
+            cnt -= pagesz;
+
+        int page = cnt / pagesz;
+        if (pageTransferred)
         {
-            if (pageRepeat && cnt)
-                cnt -= pagesz;
-
-            QByteArray ba = bin.mid(cnt, 8);
-            int page = cnt / pagesz;
-            int seq = (cnt >> 3) & (seqcnt - 1);
-
-            if (pageTransferred)
+//            qDebug() << "page" << page << "done =" << pageDone;
+            if (!pageDone && !pageRepeat)
             {
-                pageTransferred = false;
-                setPage(page);
+                state = sError;
                 return;
             }
+            pageTransferred = false;
+            if (cnt < sz)
+                setPage(page);
+            else
+                state = sFinish;
+            return;
+        }
 
-//            if ((!seq && !pageDone) || pageRepeat)
-//            {
-//                if (!pageTransferred)
-//                {
-//                    pageTransferred = true;
-//                    mCurDevCount = 0;
-//                    timer->setInterval(500);
-//                    return;
-//                }
+        pageDone = false;
+        pageRepeat = false;
 
-////                    timer->stop();
-//                pageDone = true;
-//                return;
-//            }
-
-            pageDone = false;
-            pageRepeat = false;
-
+        int seqcnt = pagesz >> 3;
+        for (int i=0; (i < seqcnt) && (cnt < sz); i++)
+        {           
+            QByteArray ba = bin.mid(cnt, 8);
+            int seq = (cnt >> 3) & (seqcnt - 1);
             master->sendUpgrageData(seq, ba);
             cnt += ba.size();
             pb->setValue(cnt);
-
-            if (seq == seqcnt - 1) // last chunk
-            {
-                timer->setInterval(100);
-                pageTransferred = true;
-            }
-
-            if (cnt >= sz)
-            {
-                timer->setInterval(100);
-                state = sFinish;
-                break;
-            }
         }
+
+        timer->setInterval(2000); // wait ACK
+        pageTransferred = true;
     }
     else if (state == sFinish)
     {
@@ -200,7 +183,13 @@ void UpgradeWidget::onTimer()
         timer->stop();
         scanBtn->setEnabled(true);
         startBtn->setEnabled(false);
-        return;
+    }
+    else if (state == sError)
+    {
+        log->append("ERROR!!!");
+        timer->stop();
+        scanBtn->setEnabled(true);
+        startBtn->setEnabled(false);
     }
 }
 

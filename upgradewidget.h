@@ -37,7 +37,7 @@ private:
     QPushButton *startBtn;
 
     QByteArray bin;
-    enum {sIdle, sStarted, sWork, sFinish} state;
+    enum {sIdle, sStarted, sWork, sFinish, sError} state;
     int mDevCount, mCurDevCount;
     int sz, cnt;
     int pagesz;
