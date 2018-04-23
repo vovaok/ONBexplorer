@@ -134,11 +134,36 @@ MainWindow::MainWindow(QWidget *parent) :
     mInfoBox = new QGroupBox("Device info");
     QFormLayout *gblay = new QFormLayout;
     QStringList editnames;
-    editnames << "Net address" << "Class ID" << "Name" << "Full name" << "Serial" << "Version" << "Build date" << "CPU info" << "Burn count" << "Bus type";
+    editnames << "Net address" << "Class ID" << "Name" << "Full name" << "Serial" << "Version" << "Build date" << "CPU info" << "Burn count" << "Bus type" << "Bus address";
     foreach (QString s, editnames)
     {
         QLineEdit *ed = new QLineEdit;
-        ed->setReadOnly(true);
+        if (s == "Name")
+        {
+            connect(ed, &QLineEdit::editingFinished, [=]()
+            {
+                if (device && (ed->text().trimmed() != device->name().trimmed()))
+                    device->changeName(ed->text());
+            });
+        }
+        else if (s == "Bus address")
+        {
+            connect(ed, &QLineEdit::editingFinished, [=]()
+            {
+                if (device)
+                {
+                    int mac = ed->text().toInt();
+                    if (mac <= 0 || mac > 15)
+                        ed->setText(QString::number(device->localBusAddress()));
+                    else if (device->localBusAddress() != mac)
+                        device->changeBusAddress(mac);
+                }
+            });
+        }
+        else
+        {
+            ed->setReadOnly(true);
+        }
         ed->setMinimumWidth(210);
         mEdits[s] = ed;
         gblay->addRow(s, ed);
@@ -380,6 +405,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         mEdits["CPU info"]->setText(dev->cpuInfo());
         mEdits["Burn count"]->setText(QString().sprintf("%d", dev->burnCount()));
         mEdits["Bus type"]->setText(dev->busTypeName());
+        mEdits["Bus address"]->setText(QString::number(dev->localBusAddress()));
 
         for (int i=0; i<dev->objectCount(); i++)
         {

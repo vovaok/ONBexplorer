@@ -173,6 +173,7 @@ void UpgradeWidget::onTimer()
             pb->setValue(cnt);
         }
 
+        mCurDevCount = 0;
         timer->setInterval(2000); // wait ACK
         pageTransferred = true;
     }
@@ -232,6 +233,9 @@ void UpgradeWidget::onGlobalMessage(unsigned char aid)
     if (aid == aidUpgradePageDone)
     {
         mCurDevCount++;
+        log->moveCursor(QTextCursor::End);
+        log->insertPlainText("+1 ");
+        log->moveCursor(QTextCursor::End);
         if (mCurDevCount >= mDevCount)
         {
             log->moveCursor(QTextCursor::End);
