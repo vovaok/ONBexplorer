@@ -513,11 +513,16 @@ void MainWindow::onTimer()
 {
     if (device)
     {
-        for (int i=0; i<device->objectCount(); i++)
+        if (device->busType() == BusSwonb)
         {
-//            ObjectInfo *info = device->objectInfo(i);
-//            if (info->flags() & ObjectInfo::Volatile)
-//                device->requestObject(info->name());
+            for (int i=0; i<device->objectCount(); i++)
+            {
+                ObjectInfo *info = device->objectInfo(i);
+                if (!info)
+                    continue;
+                if (info->flags() & ObjectInfo::Volatile)
+                    device->requestObject(info->name());
+            }
         }
         //device->sendObject("testVar");
         setWindowTitle(device->fullName());
