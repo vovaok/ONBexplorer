@@ -46,8 +46,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
     connect(usbMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
-//    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
-    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
+    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
+//    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
     oviMaster = new ObjnetMaster(onbvi);
     oviMaster->setName("main");
     onbvi->setActive(true);

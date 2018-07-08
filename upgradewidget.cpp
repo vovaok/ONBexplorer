@@ -79,6 +79,8 @@ void UpgradeWidget::load(QByteArray firmware)
     log->append(QString().sprintf("page size = %d", info->pageSize));
     mClass = info->cid;
     pagesz = info->pageSize;
+    if (pagesz < 8)
+        pagesz = 2048;
     info->length = sz;
     info->checksum = 0;
     unsigned long cs = 0;
@@ -131,6 +133,8 @@ void UpgradeWidget::onTimer()
         {
             mCurDevCount = 0;
             log->append("all of devices are ready");
+            cnt = 0;
+            pageDone = pageTransferred = pageRepeat = false;
             setPage(0);
             state = sWork;
         }
@@ -149,7 +153,12 @@ void UpgradeWidget::onTimer()
 //            qDebug() << "page" << page << "done =" << pageDone;
             if (!pageDone && !pageRepeat)
             {
-                state = sError;
+//                pageRepeat = true;
+//                return;
+                master->sendServiceRequest(aidUpgradeProbe, true);
+                log->append("no response, probe request...");
+                timer->setInterval(200);
+                //state = sError;
                 return;
             }
             pageTransferred = false;
@@ -176,6 +185,7 @@ void UpgradeWidget::onTimer()
         mCurDevCount = 0;
         timer->setInterval(2000); // wait ACK
         pageTransferred = true;
+        master->sendServiceRequest(aidUpgradeProbe, true);
     }
     else if (state == sFinish)
     {
@@ -232,6 +242,7 @@ void UpgradeWidget::onGlobalMessage(unsigned char aid)
     aid &= 0x3F;
     if (aid == aidUpgradePageDone)
     {
+        //qDebug() << "page" << (cnt / pagesz) << "done";
         mCurDevCount++;
         log->moveCursor(QTextCursor::End);
         log->insertPlainText("+1 ");
@@ -247,6 +258,7 @@ void UpgradeWidget::onGlobalMessage(unsigned char aid)
     }
     else if (aid == aidUpgradeRepeat)// && (pageTransferred || !cnt))
     {
+        //qDebug() << "page" << (cnt / pagesz) << "repeat";
         log->moveCursor(QTextCursor::End);
         log->insertPlainText(" FAIL! repeat page");
         log->moveCursor(QTextCursor::End);
@@ -266,5 +278,9 @@ void UpgradeWidget::onGlobalMessage(unsigned char aid)
         log->moveCursor(QTextCursor::End);
         log->insertPlainText("+1 ");
         log->moveCursor(QTextCursor::End);
+    }
+    else
+    {
+        qDebug() << "x3 response";
     }
 }
