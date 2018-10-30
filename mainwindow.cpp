@@ -46,8 +46,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
     connect(usbMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
-    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
-//    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
+//    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
+    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
     oviMaster = new ObjnetMaster(onbvi);
     oviMaster->setName("main");
     onbvi->setActive(true);
@@ -541,16 +541,19 @@ void MainWindow::onTimer()
     {
         if (device->busType() == BusSwonb)
         {
+            QStringList names;
             for (int i=0; i<device->objectCount(); i++)
             {
                 ObjectInfo *info = device->objectInfo(i);
                 if (!info)
                     continue;
                 if (info->flags() & ObjectInfo::Volatile)
-                    device->requestObject(info->name());
+                    names << info->name();
             }
+            device->groupedRequest(names.toVector().toStdVector());
+//            foreach (QString name, names)
+//                device->requestObject(name);
         }
-        //device->sendObject("testVar");
         setWindowTitle(device->fullName());
      }
 
@@ -802,6 +805,7 @@ void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId)
                 {
                     upg->show();
                 }
+                upg->logAppend("firmware found: "+fname);
                 upg->load(fw);
                 break;
             }

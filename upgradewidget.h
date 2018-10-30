@@ -54,6 +54,7 @@ public:
 
     void load(QByteArray firmware);
     static bool checkClass(const QByteArray &firmware, unsigned long cid);
+    void logAppend(QString s) {log->append(s);}
 
 private slots:
     void onTimer();
