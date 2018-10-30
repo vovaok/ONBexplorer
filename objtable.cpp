@@ -156,11 +156,31 @@ QString ObjTable::valueToString(QVariant value)
     }
     else// if (value.type() == QVariant::String)
     {
-        if (static_cast<QMetaType::Type>(value.type()) == QMetaType::UChar)
+        QMetaType::Type mt = static_cast<QMetaType::Type>(value.type());
+        if (mt == QMetaType::SChar)
+        {
             value = value.toInt();
-        if (static_cast<QMetaType::Type>(value.type()) == QMetaType::SChar)
-            value = value.toInt();
-        val = value.toString();
+            val = value.toString();
+        }
+//        else if (mt == QMetaType::UChar)
+//        {
+//            value = value.toInt();
+//            val = value.toString();
+//        }
+        else if (mt == QMetaType::UChar)
+        {
+            val = QString().sprintf("0x%02X", value.toInt());
+        }
+        else if (mt == QMetaType::UShort)
+        {
+            val = QString().sprintf("0x%04X", value.toInt());
+        }
+        else if (mt == QMetaType::ULong)
+        {
+            val = QString().sprintf("0x%08X", value.toInt());
+        }
+        else
+            val = value.toString();
     }
     return val;
 }
@@ -224,9 +244,15 @@ void ObjTable::onCellChanged(int row, int col)
         ObjectInfo *info = mDevice->objectInfo(idx);
         QVariant val = item(row, col)->text();
         if (info->rType() == ObjectInfo::Common)
+        {
             val = QByteArray::fromHex(val.toByteArray());
+        }
         else
+        {
+            if (val.toString().startsWith("0x"))
+                val = val.toString().mid(2).toUInt(nullptr, 16);
             val.convert(info->rType());
+        }
         info->fromVariant(val);
         if (info->flags() & ObjectInfo::Function)
             return;
