@@ -550,9 +550,9 @@ void MainWindow::onTimer()
                 if (info->flags() & ObjectInfo::Volatile)
                     names << info->name();
             }
-            device->groupedRequest(names.toVector().toStdVector());
-//            foreach (QString name, names)
-//                device->requestObject(name);
+//            device->groupedRequest(names.toVector().toStdVector());
+            foreach (QString name, names)
+                device->requestObject(name);
         }
         setWindowTitle(device->fullName());
      }
