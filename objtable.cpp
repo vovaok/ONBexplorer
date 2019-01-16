@@ -12,14 +12,19 @@ ObjTable::ObjTable(QWidget *parent) :
 
 void ObjTable::setDevice(ObjnetDevice *dev)
 {
-    mDevice = dev;
+    mDevice = dev;   
 
+    updateTable();
+}
+
+void ObjTable::updateTable()
+{
     clear();
     setRowCount(0);
 
     if (mDevice)
     {
-        int cnt = dev->objectCount();
+        int cnt = mDevice->objectCount();
         setColumnCount(4);
         setRowCount(cnt);
         setColumnWidth(0, 120);
@@ -33,7 +38,7 @@ void ObjTable::setDevice(ObjnetDevice *dev)
         blockSignals(true);
         for (int i=0; i<cnt; i++)
         {
-            ObjectInfo *info = dev->objectInfo(i);
+            ObjectInfo *info = mDevice->objectInfo(i);
             if (!info)
                 continue;
 
@@ -66,9 +71,9 @@ void ObjTable::setDevice(ObjnetDevice *dev)
                 QPushButton *btn = new QPushButton(name);
                 setCellWidget(i, 0, btn);
                 if (fla & ObjectInfo::Read) // na samom dele Write, no tut naoborot)
-                    connect(btn, &QPushButton::clicked, [dev, name](){dev->sendObject(name);});
+                    connect(btn, &QPushButton::clicked, [this, name](){if (mDevice) mDevice->sendObject(name);});
                 else
-                    connect(btn, &QPushButton::clicked, [dev, name](){dev->requestObject(name);});
+                    connect(btn, &QPushButton::clicked, [this, name](){if (mDevice) mDevice->requestObject(name);});
             }
             else
             {
@@ -80,7 +85,7 @@ void ObjTable::setDevice(ObjnetDevice *dev)
                     typnam = wt;
 
                 setItem(i, 0, new QTableWidgetItem(name));
-                dev->requestObject(name);
+                mDevice->requestObject(name);
             }
 
             setItem(i, 2, new QTableWidgetItem(typnam));
@@ -264,3 +269,5 @@ void ObjTable::onCellDblClick(int row, int col)
 {
 
 }
+
+

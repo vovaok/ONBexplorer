@@ -24,6 +24,7 @@ protected:
 private slots:
     void onCellChanged(int row, int col);
     void onCellDblClick(int row, int col);
+    void updateTable();
 
 public:
     ObjTable(QWidget *parent = nullptr);

@@ -7,8 +7,13 @@ MainWindow::MainWindow(QWidget *parent) :
     upg(0L),
     sent(0),
     received(0),
-    device(0L)
+    device(0L),
+    lastDeviceId(0)
 {
+
+    std::string str = "preved";
+
+
     ui->setupUi(this);
     setWindowTitle("ONB Explorer");
 //    resize(800, 500);
@@ -209,7 +214,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     QTimer *timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(onTimer()));
-    timer->start(30);
+    timer->start(100);
 
     mEtimer.start();
 
@@ -386,6 +391,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
     if (dev)
     {
         device = dev;
+        lastDeviceId = device->serial();
 
         if (!dev->isInfoValid())
         {
@@ -421,6 +427,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
     else
     {
         device = nullptr;
+        lastDeviceId = 0;
         mInfoBox->setTitle("Device info");
         foreach (QLineEdit *ed, mEdits)
             ed->clear();
@@ -550,9 +557,9 @@ void MainWindow::onTimer()
                 if (info->flags() & ObjectInfo::Volatile)
                     names << info->name();
             }
-            device->groupedRequest(names.toVector().toStdVector());
-//            foreach (QString name, names)
-//                device->requestObject(name);
+//            device->groupedRequest(names.toVector().toStdVector());
+            foreach (QString name, names)
+                device->requestObject(name);
         }
         setWindowTitle(device->fullName());
      }
@@ -663,6 +670,7 @@ void MainWindow::onDevConnected(unsigned char netAddress)
         {
             master->requestClassId(netAddress);
             master->requestName(netAddress);
+            master->requestSerial(netAddress);
         }
     }
 }
@@ -725,6 +733,17 @@ void MainWindow::onServiceMessageAccepted(unsigned char netAddress, SvcOID oid, 
           case svcName:
             item->setText(0, data);
             break;
+
+          case svcSerial:
+          {
+            unsigned long serial = *reinterpret_cast<const unsigned long*>(data.data());
+            if (serial == lastDeviceId)
+            {
+                mTree->setCurrentItem(item);
+                onItemClick(item, 0);
+            }
+            break;
+          }
 
           default:;
         }

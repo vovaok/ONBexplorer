@@ -64,6 +64,8 @@ private:
 
     QMap<QString, QTextEdit*> mLogs;
 
+    unsigned long lastDeviceId;
+
     void logMessage(ulong id, QByteArray &data, bool dir=0);
     QString ba2str(const QByteArray &ba);
     int getRootId(ObjnetMaster *mas);
