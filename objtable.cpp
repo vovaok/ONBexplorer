@@ -12,14 +12,19 @@ ObjTable::ObjTable(QWidget *parent) :
 
 void ObjTable::setDevice(ObjnetDevice *dev)
 {
-    mDevice = dev;
+    mDevice = dev;   
 
+    updateTable();
+}
+
+void ObjTable::updateTable()
+{
     clear();
     setRowCount(0);
 
     if (mDevice)
     {
-        int cnt = dev->objectCount();
+        int cnt = mDevice->objectCount();
         setColumnCount(4);
         setRowCount(cnt);
         setColumnWidth(0, 120);
@@ -33,7 +38,7 @@ void ObjTable::setDevice(ObjnetDevice *dev)
         blockSignals(true);
         for (int i=0; i<cnt; i++)
         {
-            ObjectInfo *info = dev->objectInfo(i);
+            ObjectInfo *info = mDevice->objectInfo(i);
             if (!info)
                 continue;
 
@@ -66,9 +71,9 @@ void ObjTable::setDevice(ObjnetDevice *dev)
                 QPushButton *btn = new QPushButton(name);
                 setCellWidget(i, 0, btn);
                 if (fla & ObjectInfo::Read) // na samom dele Write, no tut naoborot)
-                    connect(btn, &QPushButton::clicked, [dev, name](){dev->sendObject(name);});
+                    connect(btn, &QPushButton::clicked, [this, name](){if (mDevice) mDevice->sendObject(name);});
                 else
-                    connect(btn, &QPushButton::clicked, [dev, name](){dev->requestObject(name);});
+                    connect(btn, &QPushButton::clicked, [this, name](){if (mDevice) mDevice->requestObject(name);});
             }
             else
             {
@@ -80,7 +85,7 @@ void ObjTable::setDevice(ObjnetDevice *dev)
                     typnam = wt;
 
                 setItem(i, 0, new QTableWidgetItem(name));
-                dev->requestObject(name);
+                mDevice->requestObject(name);
             }
 
             setItem(i, 2, new QTableWidgetItem(typnam));
@@ -156,11 +161,31 @@ QString ObjTable::valueToString(QVariant value)
     }
     else// if (value.type() == QVariant::String)
     {
-        if (static_cast<QMetaType::Type>(value.type()) == QMetaType::UChar)
+        QMetaType::Type mt = static_cast<QMetaType::Type>(value.type());
+        if (mt == QMetaType::SChar)
+        {
             value = value.toInt();
-        if (static_cast<QMetaType::Type>(value.type()) == QMetaType::SChar)
-            value = value.toInt();
-        val = value.toString();
+            val = value.toString();
+        }
+//        else if (mt == QMetaType::UChar)
+//        {
+//            value = value.toInt();
+//            val = value.toString();
+//        }
+        else if (mt == QMetaType::UChar)
+        {
+            val = QString().sprintf("0x%02X", value.toInt());
+        }
+        else if (mt == QMetaType::UShort)
+        {
+            val = QString().sprintf("0x%04X", value.toInt());
+        }
+        else if (mt == QMetaType::ULong)
+        {
+            val = QString().sprintf("0x%08X", value.toInt());
+        }
+        else
+            val = value.toString();
     }
     return val;
 }
@@ -224,9 +249,15 @@ void ObjTable::onCellChanged(int row, int col)
         ObjectInfo *info = mDevice->objectInfo(idx);
         QVariant val = item(row, col)->text();
         if (info->rType() == ObjectInfo::Common)
+        {
             val = QByteArray::fromHex(val.toByteArray());
+        }
         else
+        {
+            if (val.toString().startsWith("0x"))
+                val = val.toString().mid(2).toUInt(nullptr, 16);
             val.convert(info->rType());
+        }
         info->fromVariant(val);
         if (info->flags() & ObjectInfo::Function)
             return;
@@ -238,3 +269,5 @@ void ObjTable::onCellDblClick(int row, int col)
 {
 
 }
+
+
