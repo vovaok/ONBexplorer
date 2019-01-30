@@ -11,7 +11,7 @@
 
 #include "objnetvirtualinterface.h"
 #include "objnetvirtualserver.h"
-#include "usbhidonbinterface.h"
+#include "usbonbinterface.h"
 
 #include "objtable.h"
 #include "graphwidget.h"
