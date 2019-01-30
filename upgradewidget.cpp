@@ -147,10 +147,6 @@ void UpgradeWidget::onTimer()
         if (pagesz < 8) // backwards compatibility
             pagesz = 2048;
 
-        if (pageRepeat && cnt)
-            cnt -= pagesz;
-
-        int page = cnt / pagesz;
         if (pageTransferred)
         {
 //            qDebug() << "page" << page << "done =" << pageDone;
@@ -164,33 +160,61 @@ void UpgradeWidget::onTimer()
                 //state = sError;
                 return;
             }
-            pageTransferred = false;
-            if (cnt < sz)
-                setPage(page);
             else
-                state = sFinish;
-            return;
+            {
+                pageTransferred = false;
+                if (pageRepeat && cnt)
+                    cnt = ((cnt - 1) / pagesz) * pagesz;
+                int page = cnt / pagesz;
+
+                if (cnt < sz)
+                    setPage(page);
+                else
+                    state = sFinish;
+                return;
+            }
         }
 
         pageDone = false;
         pageRepeat = false;
+        curbytes = 0;
+
+        state = sTransferPage;
+        timer->setInterval(16);
+    }
+    else if (state == sTransferPage)
+    {
+        timer->setInterval(16);
 
         int seqcnt = pagesz >> 3;
-        for (int i=0; (i < seqcnt) && (cnt < sz); i++)
-        {           
+        int maxseqs = 128 >> 3;
+        log->moveCursor(QTextCursor::End);
+        log->insertPlainText(".");
+        log->moveCursor(QTextCursor::End);
+        //log->append("send bytes from " + QString::number(curbytes));
+        for (int i=0; (i<maxseqs) && (cnt < sz); i++)
+        {
             QByteArray ba = bin.mid(cnt, 8);
+            int basz = ba.size();
             int seq = (cnt >> 3) & (seqcnt - 1);
             master->sendUpgrageData(seq, ba);
-            cnt += ba.size();
+            cnt += basz;
+            curbytes += basz;
             pb->setValue(cnt);
         }
 
+        if (curbytes >= pagesz || cnt >= sz) // page transferred
+            state = sEndPage;
+    }
+    else if (state == sEndPage)
+    {
         mCurDevCount = 0;
-        timer->setInterval(2000); // wait ACK
+        timer->setInterval(200); // wait ACK
         pageTransferred = true;
 //#warning FUCKING HACK
         if (pagesz == 2048)
             master->sendGlobalRequest(aidUpgradeProbe, true);
+        state = sWork;
     }
     else if (state == sFinish)
     {
@@ -258,7 +282,7 @@ void UpgradeWidget::onGlobalMessage(unsigned char aid)
             log->insertPlainText(" success");
             log->moveCursor(QTextCursor::End);
             pageDone = true;
-            timer->start(30);
+            timer->start(16);
         }
     }
     else if (aid == aidUpgradeRepeat)// && (pageTransferred || !cnt))
@@ -268,7 +292,7 @@ void UpgradeWidget::onGlobalMessage(unsigned char aid)
         log->insertPlainText(" FAIL! repeat page");
         log->moveCursor(QTextCursor::End);
         pageRepeat = true;
-        timer->start(30);
+        timer->start(16);
     }
     else if (aid == aidUpgradeAccepted)
     {
