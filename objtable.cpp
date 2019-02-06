@@ -49,14 +49,14 @@ void ObjTable::updateTable()
             QString wt = QMetaType::typeName(info->wType());
             if (wt == "QString")
                 wt = "string";
-            else if (wt == "QByteArray")
+            else if (wt == "QByteArray" && info->description().writeSize)
                 wt = "common";
             if (info->wCount() > 1)
                 wt += "[" + QString::number(info->wCount()) + "]";
             QString rt = QMetaType::typeName(info->rType());
             if (rt == "QString")
                 rt = "string";
-            else if (rt == "QByteArray")
+            else if (rt == "QByteArray" && info->description().readSize)
                 rt = "common";
             if (info->rCount() > 1)
                 rt += "[" + QString::number(info->rCount()) + "]";

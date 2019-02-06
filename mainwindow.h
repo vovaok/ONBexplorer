@@ -11,7 +11,7 @@
 
 #include "objnetvirtualinterface.h"
 #include "objnetvirtualserver.h"
-#include "usbhidonbinterface.h"
+#include "usbonbinterface.h"
 
 #include "objtable.h"
 #include "graphwidget.h"
@@ -28,7 +28,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
 private:
