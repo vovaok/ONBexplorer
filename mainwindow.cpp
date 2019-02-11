@@ -40,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 //    master = new ObjnetMaster(new SerialCanInterface(can));
 
-    UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbHidThread(0x0bad, 0xcafe, this));
+    UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbOnbThread(this));
     connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
     usbMaster = new ObjnetMaster(usbonb);
 
@@ -149,6 +149,14 @@ MainWindow::MainWindow(QWidget *parent) :
             {
                 if (device && (ed->text().trimmed() != device->name().trimmed()))
                     device->changeName(ed->text());
+            });
+        }
+        else if (s == "Full name")
+        {
+            connect(ed, &QLineEdit::editingFinished, [=]()
+            {
+                if (device && (ed->text().trimmed() != device->fullName().trimmed()))
+                    device->changeFullName(ed->text());
             });
         }
         else if (s == "Bus address")
