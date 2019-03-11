@@ -3,11 +3,10 @@
 
 #include <QMainWindow>
 #include <QtWidgets>
-#include "serialcaninterface.h"
+#include "serialonbinterface.h"
 #include "objnetmaster.h"
 #include "objnetnode.h"
-#include "qserialport.h"
-#include "qserialportinfo.h"
+#include "serialportwidget.h"
 
 #include "objnetvirtualinterface.h"
 #include "objnetvirtualserver.h"
@@ -52,9 +51,8 @@ private:
 
     int sent, received;
 
-    QSerialPort *uart;
-    SerialCan *can;
-    ObjnetMaster *canMaster, *usbMaster, *oviMaster;
+    SerialPortWidget *uartWidget;
+    ObjnetMaster *serialMaster, *usbMaster, *oviMaster;
     ObjnetDevice *device;
 
     QElapsedTimer mEtimer;
@@ -100,8 +98,6 @@ private slots:
     void onGlobalMessage(unsigned char aid);
 
     void onDevReady();
-
-    void onPortChanged(QString portname);
 
     void upgrade(ObjnetMaster *master, unsigned long classId);
 

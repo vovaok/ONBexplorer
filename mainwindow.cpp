@@ -18,27 +18,42 @@ MainWindow::MainWindow(QWidget *parent) :
     setWindowTitle("ONB Explorer");
 //    resize(800, 500);
 
-    uart = new QSerialPort();
-    uart->setBaudRate(1000000);
-    uart->setParity(QSerialPort::EvenParity);
-    uart->setStopBits(QSerialPort::OneStop);
-    uart->setFlowControl(QSerialPort::NoFlowControl);
+    uartWidget = new SerialPortWidget();
+    uartWidget->autoConnect("STM");
+    uartWidget->disableAutoRead();
+    uartWidget->setBaudrate(1000000); // means nothing for VCP
+    ui->mainToolBar->addWidget(uartWidget);
+
+//    uart = new QSerialPort();
+//    uart->setBaudRate(1000000);
+//    uart->setParity(QSerialPort::EvenParity);
+//    uart->setStopBits(QSerialPort::OneStop);
+//    uart->setFlowControl(QSerialPort::NoFlowControl);
 
     onbvs = new ObjnetVirtualServer(this);
     connect(onbvs, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
     connect(onbvs, SIGNAL(message(QString)), SLOT(logMessage(QString)));
 
 
-    can = new SerialCan(uart, SerialCan::protoCommon);
-    //can->setBaudrate(1000000);
-    //can->setFixedWidth(260);
-    connect(can, SIGNAL(onMessage(ulong,QByteArray&)), this, SLOT(onMessage(ulong,QByteArray&)));
-    connect(can, SIGNAL(onMessageSent(ulong,QByteArray&)), this, SLOT(onMessageSent(ulong,QByteArray&)));
-    connect(can, SIGNAL(connected()), this, SLOT(onBoardConnect()));
-    connect(can, SIGNAL(disconnected()), this, SLOT(onBoardDisconnect()));
-    //ui->mainToolBar->addWidget(can);
+//    can = new SerialCan(uart, SerialCan::protoCommon);
+//    //can->setBaudrate(1000000);
+//    //can->setFixedWidth(260);
+//    connect(can, SIGNAL(onMessage(ulong,QByteArray&)), this, SLOT(onMessage(ulong,QByteArray&)));
+//    connect(can, SIGNAL(onMessageSent(ulong,QByteArray&)), this, SLOT(onMessageSent(ulong,QByteArray&)));
+//    connect(can, SIGNAL(connected()), this, SLOT(onBoardConnect()));
+//    connect(can, SIGNAL(disconnected()), this, SLOT(onBoardDisconnect()));
+//    //ui->mainToolBar->addWidget(can);
 
-//    master = new ObjnetMaster(new SerialCanInterface(can));
+    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device());
+    connect(serialOnb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+    serialMaster = new ObjnetMaster(serialOnb);
+
+    connect(serialMaster, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
+    connect(serialMaster, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
+    connect(serialMaster, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
+    connect(serialMaster, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
+    connect(serialMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
+    connect(serialMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
     UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbOnbThread(this));
     connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
@@ -51,8 +66,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
     connect(usbMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
-//    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
-    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
+    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
+//    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
     oviMaster = new ObjnetMaster(onbvi);
     oviMaster->setName("main");
     onbvi->setActive(true);
@@ -65,26 +80,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(oviMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
 
-    mPorts = new QComboBox();
-    mPorts->setFixedWidth(100);
-    ui->mainToolBar->addWidget(mPorts);
-    QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
-    mPorts->addItem("None");
-    foreach (QSerialPortInfo port, ports)
-    {
-        QString s;
-        if (port.isBusy())
-            s += "busy ";
-        if (port.isNull())
-            s += "null ";
-        if (!port.isValid())
-            s += "invalid ";
-        QString description = port.description();
-        qDebug() << port.portName() << ":" << s << "//" << description;
-
-        mPorts->addItem(port.portName());
-    }
-    connect(mPorts, SIGNAL(activated(QString)), SLOT(onPortChanged(QString)));
 
     mOviServerBtn = new QPushButton("ONB server");
     mOviServerBtn->setCheckable(true);
@@ -194,6 +189,10 @@ MainWindow::MainWindow(QWidget *parent) :
     item = new QTreeWidgetItem(strings);
     mTree->addTopLevelItem(item);
     item->setExpanded(true);
+    strings[0] = "<Serial>";
+    item = new QTreeWidgetItem(strings);
+    mTree->addTopLevelItem(item);
+    item->setExpanded(true);
 
     status = new QLabel("");
     ui->statusBar->addWidget(status);
@@ -260,21 +259,21 @@ void MainWindow::onMessage(ulong id, QByteArray &data)
 
 void MainWindow::onMessageSent(ulong id, QByteArray &data)
 {
-    if (!can->isActive())
-        return;
-    QString strid;
-    strid.sprintf("%08X", (unsigned int)id);
-    QString strdata;
-    for (int i=0; i<data.size(); i++)
-    {
-        QString s;
-        unsigned char byte = data[i];
-        s.sprintf("%02X ", byte);
-        strdata += s;
-    }
-    //editId->setText(strid);
-    //editData->setText(strdata);
-    logMessage(id, data, 1);
+//    if (!can->isActive())
+//        return;
+//    QString strid;
+//    strid.sprintf("%08X", (unsigned int)id);
+//    QString strdata;
+//    for (int i=0; i<data.size(); i++)
+//    {
+//        QString s;
+//        unsigned char byte = data[i];
+//        s.sprintf("%02X ", byte);
+//        strdata += s;
+//    }
+//    //editId->setText(strid);
+//    //editData->setText(strdata);
+//    logMessage(id, data, 1);
 }
 //---------------------------------------------------------------------------
 
@@ -370,6 +369,8 @@ int MainWindow::getRootId(ObjnetMaster *mas)
         return 0;
     else if (mas == oviMaster)
         return 1;
+    else if (mas == serialMaster)
+        return 2;
     else
         return -1;
 }
@@ -383,6 +384,7 @@ ObjnetMaster *MainWindow::getMasterOfItem(QTreeWidgetItem *item)
     {
         case 0: return usbMaster;
         case 1: return oviMaster;
+        case 2: return serialMaster;
     }
     return nullptr;
 }
@@ -783,22 +785,11 @@ void MainWindow::onGlobalMessage(unsigned char aid)
         text = "Global message on <Usb>: " + said;
     else if (mas == oviMaster)
         text = "Global message on <WiFi>: " + said;
+    else if (mas == serialMaster)
+        text = "Global message on <Serial>: " + said;
     logMessage(text.toHtmlEscaped());
 }
 //---------------------------------------------------------------------------
-
-void MainWindow::onPortChanged(QString portname)
-{
-    if (portname == "None")
-    {
-        can->setActive(false);
-    }
-    else
-    {
-        uart->setPortName(portname);
-        can->setActive(true);
-    }
-}
 
 void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId)
 {
@@ -896,7 +887,7 @@ void MainWindow::onObjectMenu(QPoint p)
 
 void MainWindow::setAutoRequestPeriod(unsigned long serial, QString objname, int period_ms)
 {
-    ObjnetMaster *masters[2] = {usbMaster, oviMaster};
+    ObjnetMaster *masters[3] = {usbMaster, oviMaster, serialMaster};
     for (ObjnetMaster *master: masters)
     {
         ObjnetDevice *dev = master->deviceBySerial(serial);
