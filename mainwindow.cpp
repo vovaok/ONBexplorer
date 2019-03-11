@@ -55,7 +55,7 @@ MainWindow::MainWindow(QWidget *parent) :
     onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
     oviMaster = new ObjnetMaster(onbvi);
     oviMaster->setName("main");
-    onbvi->setActive(true);
+//    onbvi->setActive(true);
 
     connect(oviMaster, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
     connect(oviMaster, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
@@ -230,7 +230,17 @@ MainWindow::MainWindow(QWidget *parent) :
     mOviServerBtn->setChecked(true);
     onbvs->setEnabled(true);
 
-//    mLogEnableBtn->setChecked(true);
+    QLineEdit *cedit = new QLineEdit();
+    QPushButton *ubtn = new QPushButton("Upgrade");
+    connect(ubtn, &QPushButton::clicked, [=](bool)
+    {
+        unsigned long cid = cedit->text().toInt(nullptr, 16);
+        this->upgrade(usbMaster, cid);
+    });
+    ui->mainToolBar->addWidget(cedit);
+    ui->mainToolBar->addWidget(ubtn);
+
+    mLogEnableBtn->setChecked(true);
 
 //    QPushButton *b = new QPushButton("upgrade");
 //    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
@@ -563,7 +573,9 @@ void MainWindow::onTimer()
                 if (!info)
                     continue;
                 if (info->flags() & ObjectInfo::Volatile)
+                {
                     names << info->name();
+                }
             }
 //            device->groupedRequest(names.toVector().toStdVector());
             foreach (QString name, names)
