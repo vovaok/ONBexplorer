@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent) :
 //    resize(800, 500);
 
     uartWidget = new SerialPortWidget();
-    uartWidget->autoConnect("STM");
+    uartWidget->autoConnect("ONB");
     uartWidget->disableAutoRead();
     uartWidget->setBaudrate(1000000); // means nothing for VCP
     ui->mainToolBar->addWidget(uartWidget);
