@@ -103,6 +103,9 @@ MainWindow::MainWindow(QWidget *parent) :
     chkSvcOnly = new QCheckBox("Svc msg only");
     chkSuppressPolling = new QCheckBox("Suppress poll msg");
 
+    chkSvcOnly->setChecked(true);
+    chkSuppressPolling->setChecked(true);
+
     QGroupBox *logBox = new QGroupBox("Log");
     QVBoxLayout *logvlay = new QVBoxLayout;
     logBox->setLayout(logvlay);
