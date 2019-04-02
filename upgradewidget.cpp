@@ -7,6 +7,8 @@ UpgradeWidget::UpgradeWidget(ObjnetMaster *onbMaster, QWidget *parent) : QWidget
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), SLOT(onTimer()));
 
+    mNetAddress = 0;
+
     pb = new QProgressBar();
     pb->setTextVisible(true);
 
@@ -213,7 +215,10 @@ void UpgradeWidget::onTimer()
         pageTransferred = true;
 //#warning FUCKING HACK
         if (pagesz == 2048)
+        {
             master->sendGlobalRequest(aidUpgradeProbe, true);
+            master->sendServiceRequest(mNetAddress+1, svcEcho, QByteArray()); // FUCKER HACK
+        }
         state = sWork;
     }
     else if (state == sFinish)

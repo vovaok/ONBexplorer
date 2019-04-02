@@ -44,6 +44,7 @@ private:
     int curbytes;
     unsigned long mClass;
     bool pageDone, pageTransferred, pageRepeat;
+    unsigned char mNetAddress;
 
     void setPage(int page);
 
@@ -52,6 +53,8 @@ protected:
 
 public:
     UpgradeWidget(ObjnetMaster *onbMaster, QWidget *parent = 0);
+
+    void setNetAddress(unsigned char netaddr) {mNetAddress = netaddr;}
 
     void load(QByteArray firmware);
     static bool checkClass(const QByteArray &firmware, unsigned long cid);

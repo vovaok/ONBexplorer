@@ -18,17 +18,13 @@ MainWindow::MainWindow(QWidget *parent) :
     setWindowTitle("ONB Explorer");
 //    resize(800, 500);
 
-    uartWidget = new SerialPortWidget();
-    uartWidget->autoConnect("ONB");
-    uartWidget->disableAutoRead();
-    uartWidget->setBaudrate(1000000); // means nothing for VCP
-    ui->mainToolBar->addWidget(uartWidget);
+    uart = new DonglePort(this);
+    uart->autoConnectTo("ONB");
+    uart->disableAutoRead();
+    uart->setBaudRate(1000000);
 
-//    uart = new QSerialPort();
-//    uart->setBaudRate(1000000);
-//    uart->setParity(QSerialPort::EvenParity);
-//    uart->setStopBits(QSerialPort::OneStop);
-//    uart->setFlowControl(QSerialPort::NoFlowControl);
+    uartWidget = new SerialPortWidget(uart);
+    ui->mainToolBar->addWidget(uartWidget);
 
     onbvs = new ObjnetVirtualServer(this);
     connect(onbvs, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
@@ -44,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent) :
 //    connect(can, SIGNAL(disconnected()), this, SLOT(onBoardDisconnect()));
 //    //ui->mainToolBar->addWidget(can);
 
-    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device());
+    SerialOnbInterface *serialOnb = new SerialOnbInterface(uart);
     connect(serialOnb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
     serialMaster = new ObjnetMaster(serialOnb);
 
@@ -165,8 +161,8 @@ MainWindow::MainWindow(QWidget *parent) :
                 {
                     int mac = ed->text().toInt();
                     if (mac <= 0 || mac > 15)
-                        ed->setText(QString::number(device->localBusAddress()));
-                    else if (device->localBusAddress() != mac)
+                        ed->setText(QString::number(device->busAddress()));
+                    else if (device->busAddress() != mac)
                         device->changeBusAddress(mac);
                 }
             });
@@ -418,9 +414,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
 
         if (!dev->isInfoValid())
         {
-            //qDebug() << "request" << dev->netAddress();
             master->requestDevInfo(dev->netAddress());
-            master->requestObjInfo(dev->netAddress());
         }
 
         mInfoBox->setTitle("Device info: " + dev->name());
@@ -434,8 +428,9 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         mEdits["CPU info"]->setText(dev->cpuInfo());
         mEdits["Burn count"]->setText(QString().sprintf("%d", dev->burnCount()));
         mEdits["Bus type"]->setText(dev->busTypeName());
-        mEdits["Bus address"]->setText(QString::number(dev->localBusAddress()));
+        mEdits["Bus address"]->setText(QString::number(dev->busAddress()));
 
+        if (dev->busType() != BusSwonb && dev->busType() != BusRadio)
         for (int i=0; i<dev->objectCount(); i++)
         {
             ObjectInfo *info = dev->objectInfo(i);
@@ -569,7 +564,22 @@ void MainWindow::onTimer()
 {
     if (device)
     {
+        QStringList names;
+        for (int i=0; i<device->objectCount(); i++)
+        {
+            ObjectInfo *info = device->objectInfo(i);
+            if (!info)
+                continue;
+            if (info->flags() & ObjectInfo::Volatile)
+                names << info->name();
+        }
+
         if (device->busType() == BusSwonb)
+        {
+            foreach (QString name, names)
+                device->requestObject(name);
+        }
+        else if (device->busType() == BusRadio)
         {
             QStringList names;
             for (int i=0; i<device->objectCount(); i++)
@@ -578,13 +588,9 @@ void MainWindow::onTimer()
                 if (!info)
                     continue;
                 if (info->flags() & ObjectInfo::Volatile)
-                {
                     names << info->name();
-                }
             }
-//            device->groupedRequest(names.toVector().toStdVector());
-            foreach (QString name, names)
-                device->requestObject(name);
+            device->groupedRequest(names.toVector().toStdVector());
         }
         setWindowTitle(device->fullName());
      }
@@ -806,7 +812,7 @@ void MainWindow::onGlobalMessage(unsigned char aid)
 }
 //---------------------------------------------------------------------------
 
-void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId)
+void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId, unsigned char netAddress)
 {
     if (master)
     {
@@ -832,6 +838,7 @@ void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId)
                 if (!upg)
                 {
                     upg = new UpgradeWidget(master, this);
+                    upg->setNetAddress(netAddress);
                     connect(upg, &UpgradeWidget::destroyed, [this](){upg = 0L;});
                 }
                 else
@@ -866,7 +873,7 @@ void MainWindow::onDeviceMenu(QPoint p)
         QAction *act1 = new QAction("Upgrade "+item->text(0)+" ("+QString::number(netaddr)+")", this);
         connect(act1, &QAction::triggered, [=](){qDebug() << "upgrade device with address" << netaddr;});
         QAction *act2 = new QAction("Upgrade all of "+item->text(0)+" ("+item->text(3)+")", this);
-        connect(act2, &QAction::triggered, [=](){this->upgrade(master, cid);});
+        connect(act2, &QAction::triggered, [=](){this->upgrade(master, cid, netaddr);});
         QMenu menu(this);
         //menu.addAction(act1);
         menu.addAction(act2);

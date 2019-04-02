@@ -11,6 +11,9 @@ TEMPLATE = app
 
 CONFIG(release,debug|release) {
     DESTDIR = $$PWD/$$TARGET
+    win32-msvc* {
+        DESTDIR = $$PWD/onbExplorer_msvc
+    }
 }
 
 CONFIG += c++11
@@ -18,7 +21,7 @@ CONFIG += c++11
 COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/onb/onb.pri)
 include($$COMPONENTS/commlib/commlib.pri)
-include ($$COMPONENTS/panel3d/panel3d.pri)
+include($$COMPONENTS/panel3d/panel3d.pri)
 
 win32: {
     CONFIG(release,debug|release) {

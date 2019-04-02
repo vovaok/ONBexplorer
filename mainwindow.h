@@ -51,7 +51,9 @@ private:
 
     int sent, received;
 
+    DonglePort *uart;
     SerialPortWidget *uartWidget;
+
     ObjnetMaster *serialMaster, *usbMaster, *oviMaster;
     ObjnetDevice *device;
 
@@ -99,7 +101,7 @@ private slots:
 
     void onDevReady();
 
-    void upgrade(ObjnetMaster *master, unsigned long classId);
+    void upgrade(ObjnetMaster *master, unsigned long classId, unsigned char netAddress=0);
 
     void onBindTest(int var);
 
