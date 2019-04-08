@@ -816,40 +816,67 @@ void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId, unsigned c
 {
     if (master)
     {
-        QStringList result;
-        QStringList diritfilt;
-        diritfilt << "*.bin";
-        QDirIterator dirit("D:/projects/iar", diritfilt, QDir::Files, QDirIterator::Subdirectories);
-        for (int i=0; i<100 && dirit.hasNext(); i++)
+        QByteArray fw;
+        QString filename;
+        QString classString;
+        classString.sprintf("0x%08X", classId);
+        QSettings sets("Neurobotics", "ONBexplorer");
+        sets.beginGroup("firmwareCache");
+
+        if (sets.contains(classString))
         {
-            QString f = dirit.next();
-            result << f;
-            qDebug() << f;
+            filename = sets.value(classString).toString();
+        }
+        else
+        {
+            QStringList result;
+            QStringList diritfilt;
+            diritfilt << "*.bin";
+            QDirIterator dirit("D:/projects/iar", diritfilt, QDir::Files, QDirIterator::Subdirectories);
+            for (int i=0; i<100 && dirit.hasNext(); i++)
+            {
+                QString f = dirit.next();
+                result << f;
+                qDebug() << f;
+            }
+
+            foreach (QString fname, result)
+            {
+                QFile f(fname);
+                f.open(QIODevice::ReadOnly);
+                fw = f.readAll();
+                f.close();
+                if (UpgradeWidget::checkClass(fw, classId))
+                {
+                    filename = fname;
+                    break;
+                }
+            }
+
+            sets.setValue(classString, filename);
+        }
+        sets.endGroup();
+
+        if (fw.isEmpty())
+        {
+            QFile f(filename);
+            f.open(QIODevice::ReadOnly);
+            fw = f.readAll();
+            f.close();
         }
 
-        foreach (QString fname, result)
+        if (!upg)
         {
-            QFile f(fname);
-            f.open(QIODevice::ReadOnly);
-            QByteArray fw = f.readAll();
-            f.close();
-            if (UpgradeWidget::checkClass(fw, classId))
-            {
-                if (!upg)
-                {
-                    upg = new UpgradeWidget(master, this);
-                    upg->setNetAddress(netAddress);
-                    connect(upg, &UpgradeWidget::destroyed, [this](){upg = 0L;});
-                }
-                else
-                {
-                    upg->show();
-                }
-                upg->logAppend("firmware found: "+fname);
-                upg->load(fw);
-                break;
-            }
+            upg = new UpgradeWidget(master, this);
+            connect(upg, &UpgradeWidget::destroyed, [this](){upg = 0L;});
         }
+        else
+        {
+            upg->show();
+        }
+        upg->logAppend(QString("firmware found: "+filename).toStdString());
+        upg->load(fw);
+        upg->scan(netAddress);
     }
 }
 
@@ -871,11 +898,11 @@ void MainWindow::onDeviceMenu(QPoint p)
         ObjnetMaster *master = getMasterOfItem(item);
 
         QAction *act1 = new QAction("Upgrade "+item->text(0)+" ("+QString::number(netaddr)+")", this);
-        connect(act1, &QAction::triggered, [=](){qDebug() << "upgrade device with address" << netaddr;});
+        connect(act1, &QAction::triggered, [=](){this->upgrade(master, cid, netaddr);});
         QAction *act2 = new QAction("Upgrade all of "+item->text(0)+" ("+item->text(3)+")", this);
-        connect(act2, &QAction::triggered, [=](){this->upgrade(master, cid, netaddr);});
+        connect(act2, &QAction::triggered, [=](){this->upgrade(master, cid);});
         QMenu menu(this);
-        //menu.addAction(act1);
+        menu.addAction(act1);
         menu.addAction(act2);
         menu.setWindowModality(Qt::NonModal);
         menu.exec(mTree->mapToGlobal(p));

@@ -7,46 +7,21 @@
 #include <QProgressBar>
 #include <QTextEdit>
 #include <QPushButton>
-#include "objnetmaster.h"
+#include "onbupgrader.h"
 
 using namespace Objnet;
-
-#pragma pack(push,1)
-typedef struct
-{
-    char const pre[12];
-    unsigned long cid;
-    unsigned short ver;
-    unsigned short pageSize;
-    unsigned long length;
-    unsigned long checksum;
-    char timestamp[25];
-} __appinfo_t__;
-#pragma pack(pop)
 
 class UpgradeWidget : public QWidget
 {
     Q_OBJECT
 
 private:
-    ObjnetMaster *master;
+    OnbUpgrader *upg;
     QProgressBar *pb;
     QTextEdit *log;
-    QTimer *timer;
     QPushButton *scanBtn;
     QPushButton *startBtn;
-
-    QByteArray bin;
-    enum {sIdle, sStarted, sWork, sTransferPage, sEndPage, sFinish, sError} state;
-    int mDevCount, mCurDevCount;
-    int sz, cnt;
-    int pagesz;
-    int curbytes;
-    unsigned long mClass;
-    bool pageDone, pageTransferred, pageRepeat;
-    unsigned char mNetAddress;
-
-    void setPage(int page);
+    QVector<unsigned char> mAddresses;
 
 protected:
     void closeEvent(QCloseEvent *e) override;
@@ -54,18 +29,16 @@ protected:
 public:
     UpgradeWidget(ObjnetMaster *onbMaster, QWidget *parent = 0);
 
-    void setNetAddress(unsigned char netaddr) {mNetAddress = netaddr;}
-
-    void load(QByteArray firmware);
+    void load(const QByteArray &firmware);
     static bool checkClass(const QByteArray &firmware, unsigned long cid);
-    void logAppend(QString s) {log->append(s);}
+    void logAppend(string s);
+
+    void scan(unsigned char netaddr);
 
 private slots:
-    void onTimer();
     void scan();
     void start();
-
-    void onGlobalMessage(unsigned char aid);
+    void onFinish();
 };
 
 #endif // UPGRADEWIDGET_H

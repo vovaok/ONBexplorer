@@ -5,6 +5,8 @@
 #include <QPushButton>
 #include <QDrag>
 #include <QMimeData>
+#include <QVector3D>
+#include <QQuaternion>
 #include "objnetdevice.h"
 
 using namespace Objnet;

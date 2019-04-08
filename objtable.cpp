@@ -184,6 +184,16 @@ QString ObjTable::valueToString(QVariant value)
         {
             val = QString().sprintf("0x%08X", value.toInt());
         }
+        else if (mt == QMetaType::QVector3D)
+        {
+            QVector3D v = value.value<QVector3D>();
+            val = QString().sprintf("(x=%.3f, y=%.3f, z=%.3f)", v.x(), v.y(), v.z());
+        }
+        else if (mt == QMetaType::QQuaternion)
+        {
+            QQuaternion q = value.value<QQuaternion>();
+            val = QString().sprintf("(w=%.3f, x=%.3f, y=%.3f, z=%.3f)", q.scalar(), q.x(), q.y(), q.z());
+        }
         else
             val = value.toString();
     }
