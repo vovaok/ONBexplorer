@@ -55,7 +55,7 @@ signals:
 
 public slots:
     void updateObject(QString name, QVariant value);
-    void updateTimedObject(QString name, unsigned long timestamp, QVariant value);
+    void updateTimedObject(QString name, uint32_t timestamp, QVariant value);
     void onAutoRequestAccepted(QString objname, int periodMs);
 };
 

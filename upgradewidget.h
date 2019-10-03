@@ -21,6 +21,7 @@ private:
     QTextEdit *log;
     QPushButton *scanBtn;
     QPushButton *startBtn;
+    QByteArray mBin;
     QVector<unsigned char> mAddresses;
 
 protected:

@@ -45,7 +45,8 @@ void UpgradeWidget::closeEvent(QCloseEvent *e)
 
 void UpgradeWidget::load(const QByteArray &firmware)
 {
-    upg->load(firmware);
+    mBin = firmware;
+    upg->load(mBin.data(), mBin.size());
 }
 
 bool UpgradeWidget::checkClass(const QByteArray &firmware, unsigned long cid)

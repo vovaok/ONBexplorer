@@ -302,7 +302,7 @@ void GraphWidget::updateObject(QString name, QVariant value)
     }
 }
 
-void GraphWidget::updateTimedObject(QString name, unsigned long timestamp, QVariant value)
+void GraphWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant value)
 {
     ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
     int ser = dev->serial();

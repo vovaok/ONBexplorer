@@ -657,7 +657,7 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
 //            connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mObjTable, SLOT(updateObject(QString,QVariant)));
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mGraph, SLOT(updateObject(QString,QVariant)));
-            connect(dev, SIGNAL(timedObjectReceived(QString,unsigned long,QVariant)), mGraph, SLOT(updateTimedObject(QString,unsigned long,QVariant)));
+            connect(dev, SIGNAL(timedObjectReceived(QString,uint32_t,QVariant)), mGraph, SLOT(updateTimedObject(QString,uint32_t,QVariant)));
             connect(dev, SIGNAL(autoRequestAccepted(QString,int)), SLOT(onAutoRequestAccepted(QString,int)));
             connect(dev, SIGNAL(autoRequestAccepted(QString,int)), mGraph, SLOT(onAutoRequestAccepted(QString,int)));
             connect(dev, SIGNAL(ready()), SLOT(onDevReady()));
