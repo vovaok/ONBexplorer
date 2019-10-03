@@ -44,6 +44,7 @@ private:
     ObjTable *mObjTable;
 
     UpgradeWidget *upg;
+    QString firmwareDir;
 
     GraphWidget *mGraph;
 

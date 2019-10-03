@@ -238,6 +238,20 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->mainToolBar->addWidget(cedit);
     ui->mainToolBar->addWidget(ubtn);
 
+    QSettings sets;
+    firmwareDir = sets.value("firmwareFolder", "d:/projects/iar").toString();
+    QPushButton *fwFolderBtn = new QPushButton("Firmware folder");
+    connect(fwFolderBtn, &QPushButton::clicked, [=](){
+        QString fwdir = QFileDialog::getExistingDirectory(this, "Specify firmware folder", firmwareDir);
+        if (QDir(fwdir).exists())
+        {
+            firmwareDir = fwdir;
+            QSettings sets;
+            sets.setValue("firmwareFolder", firmwareDir);
+        }
+    });
+    ui->mainToolBar->addWidget(fwFolderBtn);
+
     mLogEnableBtn->setChecked(true);
 
 //    QPushButton *b = new QPushButton("upgrade");
@@ -820,19 +834,21 @@ void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId, unsigned c
         QString filename;
         QString classString;
         classString.sprintf("0x%08X", classId);
-        QSettings sets("Neurobotics", "ONBexplorer");
+        QSettings sets;
         sets.beginGroup("firmwareCache");
 
         if (sets.contains(classString))
         {
             filename = sets.value(classString).toString();
+            if (!QFile(filename).exists())
+                filename = "";
         }
-        else
+        if (filename.isEmpty())
         {
             QStringList result;
             QStringList diritfilt;
             diritfilt << "*.bin";
-            QDirIterator dirit("D:/projects/iar", diritfilt, QDir::Files, QDirIterator::Subdirectories);
+            QDirIterator dirit(firmwareDir, diritfilt, QDir::Files, QDirIterator::Subdirectories);
             for (int i=0; i<100 && dirit.hasNext(); i++)
             {
                 QString f = dirit.next();
