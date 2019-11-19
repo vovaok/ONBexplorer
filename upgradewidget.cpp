@@ -51,7 +51,7 @@ void UpgradeWidget::load(const QByteArray &firmware)
 
 bool UpgradeWidget::checkClass(const QByteArray &firmware, unsigned long cid)
 {
-    return OnbUpgrader::checkClass(firmware, cid);
+    return OnbUpgrader::checkClass(firmware.data(), firmware.size(), cid);
 }
 
 void UpgradeWidget::logAppend(string s)
