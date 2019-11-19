@@ -233,6 +233,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ubtn, &QPushButton::clicked, [=](bool)
     {
         unsigned long cid = cedit->text().toInt(nullptr, 16);
+        qDebug() << QString().sprintf("Try upgrade 0x%08X", cid);
         this->upgrade(usbMaster, cid);
     });
     ui->mainToolBar->addWidget(cedit);
@@ -870,9 +871,18 @@ void MainWindow::upgrade(ObjnetMaster *master, unsigned long classId, unsigned c
                 }
             }
 
-            sets.setValue(classString, filename);
+            if (!filename.isEmpty())
+                sets.setValue(classString, filename);
         }
         sets.endGroup();
+
+        if (filename.isEmpty())
+        {
+            QByteArray ba;
+            ba.append(reinterpret_cast<const char*>(&classId), 4);
+            master->sendGlobalRequest(aidUpgradeStart, true, ba);
+            return;
+        }
 
         if (fw.isEmpty())
         {
