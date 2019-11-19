@@ -3,6 +3,7 @@
 ObjTable::ObjTable(QWidget *parent) :
     QTableWidget(parent),
     mDevice(nullptr)
+//    mOldTimestamp(0)
 {
     setMinimumWidth(412);
     setDragEnabled(true);
@@ -145,6 +146,12 @@ void ObjTable::updateObject(QString name, QVariant value)
             break;
         }
     }
+}
+
+void ObjTable::updateTimedObject(QString name, uint32_t timestamp, QVariant value)
+{
+//    if (timestamp)
+    updateObject(name, value);
 }
 
 QString ObjTable::valueToString(QVariant value)

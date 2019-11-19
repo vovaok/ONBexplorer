@@ -310,7 +310,7 @@ void GraphWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant v
     {
         if (mVarNames[ser].contains(name))
         {
-            if (!mTimestamp0)
+            if (!mTimestamp0 || timestamp < mTimestamp0)
                 mTimestamp0 = timestamp;
             mTime = (timestamp - mTimestamp0) * 0.001f;
 

@@ -17,6 +17,7 @@ class ObjTable : public QTableWidget
 
 private:
     ObjnetDevice *mDevice;
+//    uint32_t mOldTimestamp;
 
     QString valueToString(QVariant value);
 
@@ -35,6 +36,7 @@ public:
 
 public slots:
     void updateObject(QString name, QVariant value);
+    void updateTimedObject(QString name, uint32_t timestamp, QVariant value);
 };
 
 #endif // OBJTABLE_H

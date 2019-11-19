@@ -252,7 +252,7 @@ MainWindow::MainWindow(QWidget *parent) :
     });
     ui->mainToolBar->addWidget(fwFolderBtn);
 
-    mLogEnableBtn->setChecked(true);
+//    mLogEnableBtn->setChecked(true);
 
 //    QPushButton *b = new QPushButton("upgrade");
 //    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
@@ -670,6 +670,7 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
             }
 //            connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mObjTable, SLOT(updateObject(QString,QVariant)));
+            connect(dev, SIGNAL(timedObjectReceived(QString,uint32_t,QVariant)), mObjTable, SLOT(updateTimedObject(QString,uint32_t,QVariant)));
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mGraph, SLOT(updateObject(QString,QVariant)));
             connect(dev, SIGNAL(timedObjectReceived(QString,uint32_t,QVariant)), mGraph, SLOT(updateTimedObject(QString,uint32_t,QVariant)));
             connect(dev, SIGNAL(autoRequestAccepted(QString,int)), SLOT(onAutoRequestAccepted(QString,int)));
