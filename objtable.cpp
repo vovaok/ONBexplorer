@@ -214,9 +214,16 @@ void ObjTable::startDrag(Qt::DropActions supportedActions)
     if (!mDevice)
         return;
 
-    selectRow(currentRow());
-    QTableWidgetItem *it = item(currentRow(), 0);
-    int idx = it->data(Qt::UserRole).toInt();
+    QList<ObjectInfo*> selectedObjects;
+    for (QTableWidgetItem *item: selectedItems())
+    {
+        int idx = item->data(Qt::UserRole).toInt();
+        selectedObjects << mDevice->objectInfo(idx);
+    }
+
+//    selectRow(currentRow());
+//    QTableWidgetItem *it = item(currentRow(), 0);
+//    int idx = it->data(Qt::UserRole).toInt();
 
     QMimeData *mimeData = new QMimeData;
 
@@ -243,11 +250,27 @@ void ObjTable::startDrag(Qt::DropActions supportedActions)
 //        mimeData->setData("application/x-onb-object-array-size", baSize);
 //    }
 
-    QByteArray devptr(reinterpret_cast<const char*>(&mDevice), 4);
+    QByteArray devptr(reinterpret_cast<const char*>(&mDevice), sizeof(ObjnetDevice*));
     mimeData->setData("application/x-onb-device", devptr);
-    ObjectInfo *objinfo = mDevice->objectInfo(idx);
-    QByteArray objptr(reinterpret_cast<const char*>(&objinfo), 4);
-    mimeData->setData("application/x-onb-object", objptr);
+//    ObjectInfo *objinfo = mDevice->objectInfo(idx);
+    if (selectedObjects.count() == 1)
+    {
+        QByteArray objptr(reinterpret_cast<const char*>(&selectedObjects[0]), sizeof(ObjectInfo*));
+        mimeData->setData("application/x-onb-object", objptr);
+    }
+    else
+    {
+        QByteArray data;
+        uint32_t cnt = selectedObjects.size();
+        QByteArray cntdata(reinterpret_cast<const char*>(&cnt), sizeof(uint32_t));
+        data.append(cntdata);
+        for (ObjectInfo *obj: selectedObjects)
+        {
+            QByteArray objptr(reinterpret_cast<const char*>(&obj), sizeof(ObjectInfo*));
+            data.append(objptr);
+        }
+        mimeData->setData("application/x-onb-object-list", data);
+    }
 
     QDrag *drag = new QDrag(this);
     drag->setMimeData(mimeData);

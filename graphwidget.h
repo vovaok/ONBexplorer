@@ -24,6 +24,7 @@ private:
     QElapsedTimer mTimer;
     QMap<unsigned long, QString> mDevices; // serial -> name[mac]
     QMap<unsigned long, QStringList> mVarNames;
+    QMap<QString, QStringList> mDependencies;
     QFormLayout *mNamesLay;
     QVector<QColor> mColors;
     int mCurColor;
@@ -42,6 +43,9 @@ private:
     void removeObjname(unsigned long serial, QString objname);
     int getRow(unsigned long serial, QString objname);
 
+    void regDevice(ObjnetDevice *dev);
+    bool regObject(ObjnetDevice *dev, ObjectInfo *obj);
+
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
@@ -55,6 +59,7 @@ signals:
 
 public slots:
     void updateObject(QString name, QVariant value);
+    void updateObjectGroup(QVariantMap values);
     void updateTimedObject(QString name, uint32_t timestamp, QVariant value);
     void onAutoRequestAccepted(QString objname, int periodMs);
 };

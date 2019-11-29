@@ -94,6 +94,10 @@ void GraphWidget::dragEnterEvent(QDragEnterEvent *event)
         else
             event->acceptProposedAction();
     }
+    else if (event->mimeData()->hasFormat("application/x-onb-object-list"))
+    {
+        event->acceptProposedAction();
+    }
     else
     {
         event->ignore();
@@ -114,28 +118,84 @@ void GraphWidget::dropEvent(QDropEvent *event)
         QByteArray devptr = event->mimeData()->data("application/x-onb-device");
         ObjnetDevice *dev = *reinterpret_cast<ObjnetDevice**>(devptr.data());
 
-        int ser = dev->serial();
-        if (!mDevices.contains(ser))
-        {
-            mDevices[ser] = dev->name();// + "[" + QString::number(dev->busAddress()) + "]";
-            QString serstr = QString().sprintf("(%08X)", (unsigned int)ser);
-            QLabel *devname = new QLabel(mDevices[ser] + " " + serstr);
-            devname->setProperty("serial", (unsigned int)ser);
-            int row = mNamesLay->rowCount();
-            mNamesLay->addRow(devname);
-//            mNamesLay->addWidget(devname, row, 0, 1, 4);
-        }
+        regDevice(dev);
 
-        if (!mVarNames[ser].contains(obj->name()))
+        if (regObject(dev, obj))
         {
-            mVarNames[ser] << obj->name();
-            addObjname(ser, obj->name(), obj->isArray()? obj->wCount(): 0);
             event->acceptProposedAction();
             return;
         }
     }
 
+    else if (event->mimeData()->hasFormat("application/x-onb-object-list"))
+    {        
+        QByteArray listptr = event->mimeData()->data("application/x-onb-object-list");
+        uint32_t cnt = *reinterpret_cast<uint32_t*>(listptr.data());
+        ObjectInfo **objlist = reinterpret_cast<ObjectInfo**>(listptr.data() + sizeof(uint32_t));
+        QByteArray devptr = event->mimeData()->data("application/x-onb-device");
+        ObjnetDevice *dev = *reinterpret_cast<ObjnetDevice**>(devptr.data());
+
+        int ser = dev->serial();
+        regDevice(dev);
+
+        QStringList names;
+        for (int i=0; i<cnt; i++)
+        {
+            //regObject(dev, objlist[i]);
+            names << objlist[i]->name();
+        }
+
+        QString objname = names.join("+");
+        if (names.count() == 2)
+            objname = names[1] + "(" + names[0] + ")";
+        QString graphname = mDevices[ser] + "." + objname;
+        mDependencies[graphname] = names;
+
+        if (!mVarNames[ser].contains(objname))
+        {
+            mVarNames[ser] << objname;
+            addObjname(ser, objname, 0);// obj->isArray()? obj->wCount(): 0);
+        }
+
+        QTimer *tim = new QTimer(this);
+        connect(tim, &QTimer::timeout, [=]()
+        {
+            dev->groupedRequest(names.toVector().toStdVector());
+        });
+        tim->start(30);
+
+        event->acceptProposedAction();
+        return;
+    }
+
     event->ignore();
+}
+
+void GraphWidget::regDevice(ObjnetDevice *dev)
+{
+    int ser = dev->serial();
+    if (!mDevices.contains(ser))
+    {
+        mDevices[ser] = dev->name();// + "[" + QString::number(dev->busAddress()) + "]";
+        QString serstr = QString().sprintf("(%08X)", (unsigned int)ser);
+        QLabel *devname = new QLabel(mDevices[ser] + " " + serstr);
+        devname->setProperty("serial", (unsigned int)ser);
+        int row = mNamesLay->rowCount();
+        mNamesLay->addRow(devname);
+//            mNamesLay->addWidget(devname, row, 0, 1, 4);
+    }
+}
+
+bool GraphWidget::regObject(ObjnetDevice *dev, ObjectInfo *obj)
+{
+    int ser = dev->serial();
+    if (!mVarNames[ser].contains(obj->name()))
+    {
+        mVarNames[ser] << obj->name();
+        addObjname(ser, obj->name(), obj->isArray()? obj->wCount(): 0);
+        return true;
+    }
+    return false;
 }
 
 void GraphWidget::addObjname(unsigned long serial, QString objname, int childCount)
@@ -298,6 +358,32 @@ void GraphWidget::updateObject(QString name, QVariant value)
                     addPoint(graphname+"["+QString::number(i)+"]", list[i].toFloat());
                 }
             }
+        }
+    }
+}
+
+void GraphWidget::updateObjectGroup(QVariantMap values)
+{
+    ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
+    int ser = dev->serial();
+    if (mDevices.contains(ser))
+    {
+        QString depname = values.keys().join("+");
+        if (values.count() == 2)
+            depname = values.keys()[1] + "(" + values.keys()[0] + ")";
+        QString graphname = mDevices[ser] + "." + depname;
+        if (mDependencies.contains(graphname))
+        {
+            QStringList names = mDependencies[graphname];
+            QString xName = names[0];
+            QString yName = names[1];
+            float x = values[xName].toFloat();
+            float y = values[yName].toFloat();
+            if (x && xName == "testFreq")
+                x = log10f(x);
+            if (y && yName == "testK")
+                y = 20 * log10f(y);
+            mGraph->addPoint(graphname, x, y);
         }
     }
 }
