@@ -18,12 +18,15 @@ MainWindow::MainWindow(QWidget *parent) :
     setWindowTitle("ONB Explorer");
 //    resize(800, 500);
 
-    uart = new DonglePort(this);
-    uart->autoConnectTo("ONB");
-    uart->disableAutoRead();
-    uart->setBaudRate(1000000);
+//    uart = new DonglePort(this);
+//    uart->autoConnectTo("ONB");
+//    uart->disableAutoRead();
+//    uart->setBaudRate(1000000);
 
-    uartWidget = new SerialPortWidget(uart);
+    uartWidget = new SerialPortWidget();
+    uartWidget->autoConnect("ONB");
+    uartWidget->disableAutoRead();
+    uartWidget->setBaudrate(1000000);
     ui->mainToolBar->addWidget(uartWidget);
 
     onbvs = new ObjnetVirtualServer(this);
@@ -40,40 +43,39 @@ MainWindow::MainWindow(QWidget *parent) :
 //    connect(can, SIGNAL(disconnected()), this, SLOT(onBoardDisconnect()));
 //    //ui->mainToolBar->addWidget(can);
 
-    SerialOnbInterface *serialOnb = new SerialOnbInterface(uart);
-    connect(serialOnb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
-    serialMaster = new ObjnetMaster(serialOnb);
-
-    connect(serialMaster, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
-    connect(serialMaster, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
-    connect(serialMaster, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
-    connect(serialMaster, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
-    connect(serialMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
-    connect(serialMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
-
     UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbOnbThread(this));
     connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
     usbMaster = new ObjnetMaster(usbonb);
+    masters << usbMaster;
 
-    connect(usbMaster, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
-    connect(usbMaster, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
-    connect(usbMaster, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
-    connect(usbMaster, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
-    connect(usbMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
-    connect(usbMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
-
-    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
-//    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
+//    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
+    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
     oviMaster = new ObjnetMaster(onbvi);
     oviMaster->setName("main");
-//    onbvi->setActive(true);
+    onbvi->setActive(true);
+    masters << oviMaster;
 
-    connect(oviMaster, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
-    connect(oviMaster, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
-    connect(oviMaster, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
-    connect(oviMaster, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
-    connect(oviMaster, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
-    connect(oviMaster, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
+    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device());
+    connect(serialOnb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+    serialMaster = new ObjnetMaster(serialOnb);
+    masters << serialMaster;
+
+    UdpOnbInterface *udponb = new UdpOnbInterface(this);
+    udpMaster = new ObjnetMaster(udponb);
+    masters << udpMaster;
+
+    for (ObjnetMaster *m: masters)
+    {
+        connect(m, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
+        connect(m, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
+        connect(m, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
+        connect(m, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
+        connect(m, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
+        connect(m, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
+
+    }
+
+
 
 
 
@@ -192,6 +194,10 @@ MainWindow::MainWindow(QWidget *parent) :
     item = new QTreeWidgetItem(strings);
     mTree->addTopLevelItem(item);
     item->setExpanded(true);
+    strings[0] = "<Udp>";
+    item = new QTreeWidgetItem(strings);
+    mTree->addTopLevelItem(item);
+    item->setExpanded(true);
 
     status = new QLabel("");
     ui->statusBar->addWidget(status);
@@ -200,7 +206,7 @@ MainWindow::MainWindow(QWidget *parent) :
     status3 = new QLabel();
     ui->statusBar->addWidget(status3);
 
-    mGraph = new GraphWidget(this);
+    mGraph = new PlotWidget(this);
     connect(mGraph, SIGNAL(periodChanged(unsigned long,QString,int)), SLOT(setAutoRequestPeriod(unsigned long,QString,int)));
     QGroupBox *graphBox = new QGroupBox("Graph");
     graphBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
@@ -389,14 +395,10 @@ QString MainWindow::ba2str(const QByteArray &ba)
 
 int MainWindow::getRootId(ObjnetMaster *mas)
 {
-    if (mas == usbMaster)
-        return 0;
-    else if (mas == oviMaster)
-        return 1;
-    else if (mas == serialMaster)
-        return 2;
-    else
-        return -1;
+    for (int i=0; i<masters.size(); i++)
+        if (mas == masters[i])
+            return i;
+    return -1;
 }
 
 ObjnetMaster *MainWindow::getMasterOfItem(QTreeWidgetItem *item)
@@ -404,12 +406,8 @@ ObjnetMaster *MainWindow::getMasterOfItem(QTreeWidgetItem *item)
     while (item->parent())
         item = item->parent();
     int idx = mTree->indexOfTopLevelItem(item);
-    switch (idx)
-    {
-        case 0: return usbMaster;
-        case 1: return oviMaster;
-        case 2: return serialMaster;
-    }
+    if (idx >= 0 && idx < masters.size())
+        return masters[idx];
     return nullptr;
 }
 //---------------------------------------------------------------------------
@@ -429,6 +427,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
 
         if (!dev->isInfoValid())
         {
+            qDebug() << "info not valid!";
             master->requestDevInfo(dev->netAddress());
         }
 
@@ -453,6 +452,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
                 continue;
             if (info->isVolatile())
             {
+                qDebug() << "autoRequest" << info->name();
                 dev->autoRequest(info->name(), -1); // request autoRequest
             }
         }
@@ -825,6 +825,8 @@ void MainWindow::onGlobalMessage(unsigned char aid)
         text = "Global message on <WiFi>: " + said;
     else if (mas == serialMaster)
         text = "Global message on <Serial>: " + said;
+    else if (mas == udpMaster)
+        text = "Global message on <Udp>: " + said;
     logMessage(text.toHtmlEscaped());
 }
 //---------------------------------------------------------------------------
@@ -964,7 +966,6 @@ void MainWindow::onObjectMenu(QPoint p)
 
 void MainWindow::setAutoRequestPeriod(unsigned long serial, QString objname, int period_ms)
 {
-    ObjnetMaster *masters[3] = {usbMaster, oviMaster, serialMaster};
     for (ObjnetMaster *master: masters)
     {
         ObjnetDevice *dev = master->deviceBySerial(serial);

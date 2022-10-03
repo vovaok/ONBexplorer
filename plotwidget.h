@@ -1,26 +1,18 @@
-#ifndef GRAPHWIDGET_H
-#define GRAPHWIDGET_H
+#ifndef PLOTWIDGET_H
+#define PLOTWIDGET_H
 
 #include <QtWidgets>
-//#include <QGridLayout>
-//#include <QPushButton>
-#include "panel3d.h"
-#include "graph2d.h"
+#include "graphwidget.h"
 #include "objnetdevice.h"
-//#include <QFormLayout>
-//#include <QLabel>
-//#include <QSpinBox>
-//#include <QCheckBox>
 
 using namespace Objnet;
 
-class GraphWidget : public QWidget
+class PlotWidget : public QWidget
 {
     Q_OBJECT
 
 private:
-    QPanel3D *mScene;
-    Graph2D *mGraph;
+    GraphWidget *mGraph;
     QElapsedTimer mTimer;
     QMap<unsigned long, QString> mDevices; // serial -> name[mac]
     QMap<unsigned long, QStringList> mVarNames;
@@ -30,11 +22,8 @@ private:
     int mCurColor;
     QColor nextColor();
 
-    QPushButton *mClearBtn;
     int mTimestamp0;
     float mTime;
-
-    void setupScene();
 
     void addPoint(QString name, float val);
     void removeGraph(QString name);
@@ -52,7 +41,7 @@ protected:
     void dropEvent(QDropEvent *event) override;
 
 public:
-    explicit GraphWidget(QWidget *parent = 0);
+    explicit PlotWidget(QWidget *parent = 0);
 
 signals:
     void periodChanged(unsigned long serial, QString objname, int period_ms);
@@ -64,4 +53,4 @@ public slots:
     void onAutoRequestAccepted(QString objname, int periodMs);
 };
 
-#endif // GRAPHWIDGET_H
+#endif // PLOTWIDGET_H

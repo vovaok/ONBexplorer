@@ -1,6 +1,6 @@
-#include "graphwidget.h"
+#include "plotwidget.h"
 
-GraphWidget::GraphWidget(QWidget *parent) :
+PlotWidget::PlotWidget(QWidget *parent) :
     QWidget(parent),
     mCurColor(0),
     mTimestamp0(0),
@@ -10,44 +10,73 @@ GraphWidget::GraphWidget(QWidget *parent) :
 
     mColors << Qt::red << Qt::blue << Qt::black << QColor("green") << QColor(0, 192, 0) << QColor(0, 224, 224) << Qt::magenta << QColor(192, 192, 0) << Qt::darkGray;
 
-    mScene = new QPanel3D(this);
-    mScene->setMinimumSize(320, 240);
-    mScene->setDisabled(true);
-    mGraph = new Graph2D(mScene->root());
-    setupScene();
+    mGraph = new GraphWidget();
+    mGraph->setMinimumSize(400, 200);
+    mGraph->setMaxPointCount(65536);
 
-    mClearBtn = new QPushButton("Clear");
-//    mClearBtn->setFixedWidth(100);
-    connect(mClearBtn, &QPushButton::clicked, [=](){mGraph->clear(); mTimer.restart();});
+    QTimer *drawTimer = new QTimer(this);
+    connect(drawTimer, &QTimer::timeout, [=](){mGraph->update();});
+    drawTimer->start(16);
+
+    QPushButton *clearBtn = new QPushButton("Clear");
+//    clearBtn->setFixedWidth(100);
+    connect(clearBtn, &QPushButton::clicked, [=]()
+    {
+        mGraph->clear();
+        mTimer.restart();
+        mTimestamp0 = 0;
+    });
+
+    QPushButton *pauseBtn = new QPushButton("||");
+    pauseBtn->setCheckable(true);
+    pauseBtn->setFixedWidth(24);
+    connect(pauseBtn, &QPushButton::clicked, [=](bool checked)
+    {
+        if (checked)
+        {
+            drawTimer->stop();
+            mGraph->setAutoBoundsEnabled(false);
+        }
+        else
+        {
+            drawTimer->start();
+            mGraph->setAutoBoundsEnabled(true);
+        }
+    });
 
     mNamesLay = new QFormLayout;
 
     QSpinBox *pointLimitSpin = new QSpinBox();
+    pointLimitSpin->setFixedWidth(60);
     pointLimitSpin->setRange(0, 100);
     pointLimitSpin->setSingleStep(1);
-    connect(pointLimitSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int val){mGraph->setDataWindowWidth(val);});
+    connect(pointLimitSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int val)
+    {
+        mGraph->setXwindow(val);
+//        mGraph->setDataWindowWidth(val);
+    });
 
     QGridLayout *lay = new QGridLayout;
     setLayout(lay);
     lay->setContentsMargins(0, 0, 0, 0);
     lay->addLayout(mNamesLay, 0, 0);
     lay->addWidget(new QLabel(), 1, 0);
-    lay->addWidget(mScene, 0, 1, 3, 1);
-    QGridLayout *vlay = new QGridLayout;
+    lay->addWidget(mGraph, 0, 1, 3, 1);
+    QVBoxLayout *vlay = new QVBoxLayout;
     lay->addLayout(vlay, 2, 0);
-    vlay->addWidget(new QLabel("Time window, s:"), 0, 0);
-    vlay->addWidget(pointLimitSpin, 0, 1);
-    vlay->addWidget(mClearBtn, 1, 0, 1, 2);
+    QHBoxLayout *hlay = new QHBoxLayout;
+    hlay->addWidget(new QLabel("Time window, s:"));
+    hlay->addWidget(pointLimitSpin);
+    vlay->addLayout(hlay);
+    hlay = new QHBoxLayout;
+    hlay->addWidget(clearBtn);
+    hlay->addWidget(pauseBtn);
+    vlay->addLayout(hlay);
     lay->setColumnStretch(1, 1);
     lay->setRowStretch(1, 1);
-
-
-    QTimer *drawTimer = new QTimer(this);
-    connect(drawTimer, SIGNAL(timeout()), mScene, SLOT(updateGL()));
-    drawTimer->start(16);
 }
 
-QColor GraphWidget::nextColor()
+QColor PlotWidget::nextColor()
 {
     if (mCurColor >= mColors.size())
     {
@@ -59,23 +88,7 @@ QColor GraphWidget::nextColor()
     return mColors[mCurColor++];
 }
 
-void GraphWidget::setupScene()
-{
-    mScene->camera()->setPosition(QVector3D(0, 0, 10));
-    mScene->camera()->setDirection(QVector3D(0, 0, -1));
-    mScene->camera()->setTopDir(QVector3D(0, 1, 0));
-    mScene->camera()->setOrtho(true);
-    mScene->camera()->setFixedViewportSize(QSizeF(110, 110));
-    mScene->camera()->setFixedViewport(true);
-    mScene->setBackColor(Qt::white);
-    mScene->setLightingEnabled(false);
-
-    mGraph->setSize(100, 100);
-    mGraph->setPosition(-50, -50, 0);
-    mGraph->setBounds(QRectF(0, 0, 1, 0));
-}
-
-void GraphWidget::dragEnterEvent(QDragEnterEvent *event)
+void PlotWidget::dragEnterEvent(QDragEnterEvent *event)
 {
     if (event->mimeData()->hasFormat("application/x-onb-object"))
     {
@@ -104,12 +117,12 @@ void GraphWidget::dragEnterEvent(QDragEnterEvent *event)
     }
 }
 
-void GraphWidget::dragMoveEvent(QDragMoveEvent *event)
+void PlotWidget::dragMoveEvent(QDragMoveEvent *event)
 {
 //    qDebug() << "drag move";
 }
 
-void GraphWidget::dropEvent(QDropEvent *event)
+void PlotWidget::dropEvent(QDropEvent *event)
 {
     if (event->mimeData()->hasFormat("application/x-onb-object"))
     {
@@ -145,6 +158,8 @@ void GraphWidget::dropEvent(QDropEvent *event)
             names << objlist[i]->name();
         }
 
+        qDebug() << names;
+
         QString objname = names.join("+");
         if (names.count() == 2)
             objname = names[1] + "(" + names[0] + ")";
@@ -171,7 +186,7 @@ void GraphWidget::dropEvent(QDropEvent *event)
     event->ignore();
 }
 
-void GraphWidget::regDevice(ObjnetDevice *dev)
+void PlotWidget::regDevice(ObjnetDevice *dev)
 {
     int ser = dev->serial();
     if (!mDevices.contains(ser))
@@ -186,7 +201,7 @@ void GraphWidget::regDevice(ObjnetDevice *dev)
     }
 }
 
-bool GraphWidget::regObject(ObjnetDevice *dev, ObjectInfo *obj)
+bool PlotWidget::regObject(ObjnetDevice *dev, ObjectInfo *obj)
 {
     int ser = dev->serial();
     if (!mVarNames[ser].contains(obj->name()))
@@ -198,18 +213,22 @@ bool GraphWidget::regObject(ObjnetDevice *dev, ObjectInfo *obj)
     return false;
 }
 
-void GraphWidget::addObjname(unsigned long serial, QString objname, int childCount)
+void PlotWidget::addObjname(unsigned long serial, QString objname, int childCount)
 {
     int row = getRow(serial, objname);
 
     QCheckBox *chk = new QCheckBox(objname);
     chk->setChecked(true);
     if (!childCount)
-        connect(chk, &QCheckBox::toggled, [=](bool checked){mGraph->setVisible(mDevices[serial] + "." + objname, checked); mGraph->setBounds();});
-    else
-        connect(chk, &QCheckBox::toggled, [=](bool checked){});
+    {
+        connect(chk, &QCheckBox::toggled, [=](bool checked)
+        {
+            mGraph->setGraphVisible(mDevices[serial] + "." + objname, checked);
+//            mGraph->resetBounds();
+        });
+    }
     chk->setProperty("objname", objname);
-    chk->setProperty("children", childCount);
+    chk->setProperty("child_count", childCount);
 
     QSpinBox *spin = new QSpinBox();
     spin->setRange(1, 1000);
@@ -234,34 +253,41 @@ void GraphWidget::addObjname(unsigned long serial, QString objname, int childCou
     if (!childCount)
     {
         QString graphname = mDevices[serial] + "." + objname;
-        mGraph->addGraph(graphname, nextColor());
+        mGraph->addGraph(graphname, nextColor(), 2.0f);
     }
 
+    QVector<QCheckBox *> childChecks;
     row++;
     for (int i=0; i<childCount; i++, row++)
     {
         QString itemname = objname + "[" + QString::number(i) + "]";
 
-        chk = new QCheckBox(itemname);
-        chk->setChecked(true);
-        connect(chk, &QCheckBox::toggled, [=](bool checked){mGraph->setVisible(mDevices[serial] + "." + itemname, checked); mGraph->setBounds();});
-        chk->setProperty("objname", itemname);
+        QCheckBox *chk1 = new QCheckBox(itemname);
+        childChecks << chk1;
+        chk1->setChecked(true);
+        connect(chk1, &QCheckBox::toggled, [=](bool checked)
+        {
+            mGraph->setGraphVisible(mDevices[serial] + "." + itemname, checked);
+//            mGraph->resetBounds();
+        });
+        connect(chk, &QCheckBox::toggled, chk1, &QCheckBox::setChecked);
+        chk1->setProperty("objname", itemname);
 
 //        mNamesLay->addWidget(chk, row, 0);
 //        mNamesLay->addWidget(lbl, row, 1);
 
-        mNamesLay->insertRow(row, chk, new QLabel());
+        mNamesLay->insertRow(row, chk1, new QLabel());
 
         QString graphname = mDevices[serial] + "." + itemname;
-        mGraph->addGraph(graphname, nextColor());
+        mGraph->addGraph(graphname, nextColor(), 2.0f);
     }
 
-    mGraph->setBounds();
+    mGraph->resetBounds();
 
     emit periodChanged(serial, objname, -1);
 }
 
-void GraphWidget::removeObjname(unsigned long serial, QString objname)
+void PlotWidget::removeObjname(unsigned long serial, QString objname)
 {
     int row = getRow(serial, objname);
     QLayoutItem *item = mNamesLay->itemAt(row, QFormLayout::LabelRole);
@@ -273,14 +299,14 @@ void GraphWidget::removeObjname(unsigned long serial, QString objname)
         return;
     }
 
-    int childCount = item->widget()->property("children").toInt();
+    int childCount = item->widget()->property("child_count").toInt();
     for (int i=0; i<childCount; i++)
     {
         QString itemname = objname + "[" + QString::number(i) + "]";
         removeObjname(serial, itemname);
     }
 
-    mNamesLay->removeRow(mNamesLay->indexOf(item->widget())); // FUCKING HACK!!!! QFormLayout removes row by its item_index instead of row number!!
+    mNamesLay->removeRow(row);//mNamesLay->indexOf(item->widget())); // FUCKING HACK!!!! QFormLayout removes row by its item_index instead of row number!!
 
     removeGraph(mDevices[serial]+"."+objname);
 
@@ -292,13 +318,13 @@ void GraphWidget::removeObjname(unsigned long serial, QString objname)
         {
             mVarNames.remove(serial);
             mDevices.remove(serial);
-            QLayoutItem *item = mNamesLay->itemAt(row-1, QFormLayout::SpanningRole);
-            mNamesLay->removeRow(mNamesLay->indexOf(item->widget())); // FUCKING HACK!!!! QFormLayout removes row by its item_index instead of row number!!
+//            QLayoutItem *item = mNamesLay->itemAt(row-1, QFormLayout::SpanningRole);
+            mNamesLay->removeRow(row-1);//mNamesLay->indexOf(item->widget())); // FUCKING HACK!!!! QFormLayout removes row by its item_index instead of row number!!
         }
     }
 }
 
-int GraphWidget::getRow(unsigned long serial, QString objname)
+int PlotWidget::getRow(unsigned long serial, QString objname)
 {
     bool devfound = false;
     int row;
@@ -322,7 +348,7 @@ int GraphWidget::getRow(unsigned long serial, QString objname)
     return row;
 }
 
-void GraphWidget::addPoint(QString name, float val)
+void PlotWidget::addPoint(QString name, float val)
 {
     if (!mTimer.isValid())
         mTimer.start();
@@ -333,13 +359,13 @@ void GraphWidget::addPoint(QString name, float val)
 //    mScene->updateGL();
 }
 
-void GraphWidget::removeGraph(QString name)
+void PlotWidget::removeGraph(QString name)
 {
-    mGraph->clear(name);
-    mGraph->setBounds();
+    mGraph->removeGraph(name);
+    mGraph->resetBounds();
 }
 
-void GraphWidget::updateObject(QString name, QVariant value)
+void PlotWidget::updateObject(QString name, QVariant value)
 {
     ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
     int ser = dev->serial();
@@ -362,7 +388,7 @@ void GraphWidget::updateObject(QString name, QVariant value)
     }
 }
 
-void GraphWidget::updateObjectGroup(QVariantMap values)
+void PlotWidget::updateObjectGroup(QVariantMap values)
 {
     ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
     int ser = dev->serial();
@@ -372,23 +398,42 @@ void GraphWidget::updateObjectGroup(QVariantMap values)
         if (values.count() == 2)
             depname = values.keys()[1] + "(" + values.keys()[0] + ")";
         QString graphname = mDevices[ser] + "." + depname;
+        QString xName;
+        QString yName;
         if (mDependencies.contains(graphname))
         {
-            QStringList names = mDependencies[graphname];
-            QString xName = names[0];
-            QString yName = names[1];
+            xName = mDependencies[graphname][0];
+            yName = mDependencies[graphname][1];
+
+        }
+        else if (values.count() == 2)
+        {
+            depname = values.keys()[0] + "(" + values.keys()[1] + ")";
+            QString graphname = mDevices[ser] + "." + depname;
+            if (mDependencies.contains(graphname))
+            {
+                xName = mDependencies[graphname][0];
+                yName = mDependencies[graphname][1];
+            }
+        }
+
+        if (values.count() == 2 && !xName.isEmpty())
+        {
             float x = values[xName].toFloat();
             float y = values[yName].toFloat();
-            if (x && xName == "testFreq")
-                x = log10f(x);
-            if (y && yName == "testK")
-                y = 20 * log10f(y);
+//            if (xName == "angle")
+//            {
+//                float phi = x;
+//                float rho = y;
+//                x = rho * cosf(phi);
+//                y = rho * sinf(phi);
+//            }
             mGraph->addPoint(graphname, x, y);
         }
     }
 }
 
-void GraphWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant value)
+void PlotWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant value)
 {
     ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
     int ser = dev->serial();
@@ -415,7 +460,7 @@ void GraphWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant v
     }
 }
 
-void GraphWidget::onAutoRequestAccepted(QString objname, int periodMs)
+void PlotWidget::onAutoRequestAccepted(QString objname, int periodMs)
 {
     ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
     int ser = dev->serial();

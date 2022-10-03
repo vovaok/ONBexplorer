@@ -3,8 +3,12 @@
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication::setOrganizationName("Neurobotics");
     QCoreApplication::setApplicationName("ONBexplorer");
+
+    QSurfaceFormat format;
+    format.setSamples(4);
+    format.setSwapInterval(0);
+    QSurfaceFormat::setDefaultFormat(format);
 
     QApplication a(argc, argv);
     MainWindow w;

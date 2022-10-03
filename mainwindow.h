@@ -11,9 +11,10 @@
 #include "objnetvirtualinterface.h"
 #include "objnetvirtualserver.h"
 #include "usbonbinterface.h"
+#include "udponbinterface.h"
 
 #include "objtable.h"
-#include "graphwidget.h"
+#include "plotwidget.h"
 #include "upgradewidget.h"
 
 namespace Ui {
@@ -46,16 +47,17 @@ private:
     UpgradeWidget *upg;
     QString firmwareDir;
 
-    GraphWidget *mGraph;
+    PlotWidget *mGraph;
 
     QComboBox *mPorts;
 
     int sent, received;
 
-    DonglePort *uart;
+//    DonglePort *uart;
     SerialPortWidget *uartWidget;
 
-    ObjnetMaster *serialMaster, *usbMaster, *oviMaster;
+    QVector<ObjnetMaster *> masters;
+    ObjnetMaster *serialMaster, *usbMaster, *oviMaster, *udpMaster;
     ObjnetDevice *device;
 
     QElapsedTimer mEtimer;

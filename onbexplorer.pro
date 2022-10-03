@@ -22,6 +22,7 @@ COMPONENTS = d:/projects/qt/components5
 include($$COMPONENTS/onb/onb.pri)
 include($$COMPONENTS/commlib/commlib.pri)
 include($$COMPONENTS/panel3d/panel3d.pri)
+include($$COMPONENTS/megaWidgets/megaWidgets.pri)
 
 win32: {
     CONFIG(release,debug|release) {
@@ -30,14 +31,16 @@ win32: {
 }
 
 SOURCES += main.cpp\
+    ../../components5/onb/udponbinterface.cpp \
         mainwindow.cpp \
     upgradewidget.cpp \
-    graphwidget.cpp \
+    plotwidget.cpp \
     objtable.cpp
 
 HEADERS  += mainwindow.h \
+    ../../components5/onb/udponbinterface.h \
+    plotwidget.h \
     upgradewidget.h \
-    graphwidget.h \
     objtable.h
 
 FORMS    += mainwindow.ui
