@@ -418,8 +418,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
 
     ObjnetMaster *master = getMasterOfItem(item);
 
-    QVariant v = item->data(0, Qt::UserRole);
-    ObjnetDevice *dev = reinterpret_cast<ObjnetDevice*>(v.toInt());
+    ObjnetDevice *dev = item->data(0, Qt::UserRole).value<ObjnetDevice*>();
     if (dev)
     {
         device = dev;
@@ -680,8 +679,7 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
             connect(dev, SIGNAL(ready()), SLOT(onDevReady()));
             connect(dev, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
 
-            int ptr = reinterpret_cast<int>(dev);
-            item->setData(0, Qt::UserRole, ptr);
+            item->setData(0, Qt::UserRole, QVariant::fromValue<ObjnetDevice*>(dev));
             item->setData(0, Qt::UserRole+1, rootId);
             parent->addChild(item);
             mItems[rootId+netAddress] = item;
@@ -996,8 +994,7 @@ void MainWindow::prepareDevice(ObjnetDevice *dev)
     QTreeWidgetItem *item = mTree->currentItem();
     if (item)
     {
-        QVariant v = item->data(0, Qt::UserRole);
-        ObjnetDevice *itemdev = reinterpret_cast<ObjnetDevice*>(v.toInt());
+        ObjnetDevice *itemdev = item->data(0, Qt::UserRole).value<ObjnetDevice*>();
         if (itemdev == dev)
             onItemClick(item, 0);
     }
