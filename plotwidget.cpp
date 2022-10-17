@@ -25,6 +25,7 @@ PlotWidget::PlotWidget(QWidget *parent) :
         mGraph->clear();
         mTimer.restart();
         mTimestamp0 = 0;
+        mTrigCaptureTime = 0;
     });
 
     QPushButton *pauseBtn = new QPushButton("||");
@@ -46,15 +47,52 @@ PlotWidget::PlotWidget(QWidget *parent) :
 
     mNamesLay = new QFormLayout;
 
-    QSpinBox *pointLimitSpin = new QSpinBox();
+    QDoubleSpinBox *pointLimitSpin = new QDoubleSpinBox();
     pointLimitSpin->setFixedWidth(60);
-    pointLimitSpin->setRange(0, 100);
-    pointLimitSpin->setSingleStep(1);
-    connect(pointLimitSpin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int val)
+    pointLimitSpin->setRange(0, 60);
+    pointLimitSpin->setSingleStep(0.1);
+    connect(pointLimitSpin, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), [=](double val)
     {
         mGraph->setXwindow(val);
+        mTriggerWindow = val;
 //        mGraph->setDataWindowWidth(val);
     });
+
+    mOldTrigValue = 0;
+    mTrigCaptureTime = 0;
+    mTriggerSource = new QComboBox();
+    mTriggerLevel = new QLineEdit("0");
+    mTriggerLevel->setFixedWidth(40);
+    QPushButton *autoTrigLvlBtn = new QPushButton("AUTO");
+    autoTrigLvlBtn->setFixedWidth(40);
+    connect(autoTrigLvlBtn, &QPushButton::clicked, this, &PlotWidget::evalAutoTriggerLevel);
+    mTriggerOffset = new QSpinBox();
+    mTriggerOffset->setFixedWidth(60);
+    mTriggerOffset->setRange(-10000, 10000);
+    mTriggerEdge = TriggerOff;
+    QList<QPushButton *> trigButtons;
+    trigButtons << new QPushButton("OFF");
+    trigButtons << new QPushButton("_/");
+    trigButtons << new QPushButton("\\_");
+    for (int i=0; i<trigButtons.size(); i++)
+    {
+        QPushButton *btn = trigButtons[i];
+        btn->setFixedWidth(28);
+        btn->setCheckable(true);
+        btn->setAutoExclusive(true);
+        connect(btn, &QPushButton::toggled, [=](bool checked)
+        {
+            if (checked)
+                mTriggerEdge = static_cast<TriggerEdge>(i);
+        });
+    }
+    connect(trigButtons[TriggerOff], &QPushButton::toggled, [=](bool checked)
+    {
+        mGraph->setAutoBoundsEnabled(checked);
+//        mTriggerSource->setDisabled(checked);
+//        mTriggerLevel->setDisabled(checked);
+    });
+    trigButtons[TriggerOff]->setChecked(true);
 
     QGridLayout *lay = new QGridLayout;
     setLayout(lay);
@@ -71,6 +109,20 @@ PlotWidget::PlotWidget(QWidget *parent) :
     hlay = new QHBoxLayout;
     hlay->addWidget(clearBtn);
     hlay->addWidget(pauseBtn);
+    vlay->addLayout(hlay);
+    hlay = new QHBoxLayout;
+    hlay->addWidget(new QLabel("Trigger:"));
+    hlay->addWidget(mTriggerSource);
+    hlay->addWidget(trigButtons[TriggerRising]);
+    hlay->addWidget(trigButtons[TriggerFalling]);
+    hlay->addWidget(trigButtons[TriggerOff]);
+    vlay->addLayout(hlay);
+    hlay = new QHBoxLayout;
+    hlay->addWidget(new QLabel("Level:"));
+    hlay->addWidget(mTriggerLevel);
+//    hlay->addWidget(autoTrigLvlBtn);
+    hlay->addWidget(new QLabel("Offset:"));
+    hlay->addWidget(mTriggerOffset);
     vlay->addLayout(hlay);
     lay->setColumnStretch(1, 1);
     lay->setRowStretch(1, 1);
@@ -213,6 +265,11 @@ bool PlotWidget::regObject(ObjnetDevice *dev, ObjectInfo *obj)
     return false;
 }
 
+void PlotWidget::evalAutoTriggerLevel()
+{
+
+}
+
 void PlotWidget::addObjname(unsigned long serial, QString objname, int childCount)
 {
     int row = getRow(serial, objname);
@@ -254,6 +311,7 @@ void PlotWidget::addObjname(unsigned long serial, QString objname, int childCoun
     {
         QString graphname = mDevices[serial] + "." + objname;
         mGraph->addGraph(graphname, nextColor(), 2.0f);
+        mTriggerSource->addItem(graphname);
     }
 
     QVector<QCheckBox *> childChecks;
@@ -280,6 +338,7 @@ void PlotWidget::addObjname(unsigned long serial, QString objname, int childCoun
 
         QString graphname = mDevices[serial] + "." + itemname;
         mGraph->addGraph(graphname, nextColor(), 2.0f);
+        mTriggerSource->addItem(graphname);
     }
 
     mGraph->resetBounds();
@@ -308,7 +367,11 @@ void PlotWidget::removeObjname(unsigned long serial, QString objname)
 
     mNamesLay->removeRow(row);//mNamesLay->indexOf(item->widget())); // FUCKING HACK!!!! QFormLayout removes row by its item_index instead of row number!!
 
-    removeGraph(mDevices[serial]+"."+objname);
+    QString graphname = mDevices[serial] + "." + objname;
+    removeGraph(graphname);
+    int trig_idx = mTriggerSource->findText(graphname);
+    if (trig_idx >= 0)
+        mTriggerSource->removeItem(trig_idx);
 
     if (mVarNames.contains(serial))
     {
@@ -354,9 +417,45 @@ void PlotWidget::addPoint(QString name, float val)
         mTimer.start();
 
     float time = mTimer.nsecsElapsed() * 1.0e-9f;
+    addPoint(name, time, val);
+}
+
+void PlotWidget::addPoint(QString name, float time, float val)
+{
     mGraph->addPoint(name, time, val);
 
-//    mScene->updateGL();
+    if (name == mTriggerSource->currentText())
+    {
+        float level = mTriggerLevel->text().toDouble();
+        float offset = mTriggerOffset->value() * 0.001f;
+        float win = mTriggerWindow? mTriggerWindow: 1;
+
+        if (time > mTrigCaptureTime + offset + win/2)
+        {
+            if (mTriggerEdge == TriggerRising)
+            {
+//                qDebug() << mOldTrigValue << level << val;
+                if (mOldTrigValue < level && val >= level)
+                    mTrigCaptureTime = time;
+            }
+            if (mTriggerEdge == TriggerFalling)
+            {
+                if (mOldTrigValue > level && val <= level)
+                    mTrigCaptureTime = time;
+            }
+        }
+        if (mTriggerEdge == TriggerOff)
+        {
+            mTrigCaptureTime = 0;
+        }
+        mOldTrigValue = val;
+
+        if (mTrigCaptureTime)
+        {
+            mGraph->setXmin(mTrigCaptureTime + offset - win / 2);
+            mGraph->setXmax(mTrigCaptureTime + offset + win / 2);
+        }
+    }
 }
 
 void PlotWidget::removeGraph(QString name)
@@ -404,12 +503,11 @@ void PlotWidget::updateObjectGroup(QVariantMap values)
         {
             xName = mDependencies[graphname][0];
             yName = mDependencies[graphname][1];
-
         }
         else if (values.count() == 2)
         {
             depname = values.keys()[0] + "(" + values.keys()[1] + ")";
-            QString graphname = mDevices[ser] + "." + depname;
+            graphname = mDevices[ser] + "." + depname;
             if (mDependencies.contains(graphname))
             {
                 xName = mDependencies[graphname][0];
@@ -448,12 +546,12 @@ void PlotWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant va
             QString graphname = mDevices[ser] + "." + name;
             QVariantList list = value.toList();
             if (list.isEmpty())
-                mGraph->addPoint(graphname, mTime, value.toFloat());
+                addPoint(graphname, mTime, value.toFloat());
             else
             {
                 for (int i=0; i<list.size(); i++)
                 {
-                    mGraph->addPoint(graphname+"["+QString::number(i)+"]", mTime, list[i].toFloat());
+                    addPoint(graphname+"["+QString::number(i)+"]", mTime, list[i].toFloat());
                 }
             }
         }

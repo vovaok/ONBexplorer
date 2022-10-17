@@ -18,6 +18,13 @@ private:
     QMap<unsigned long, QStringList> mVarNames;
     QMap<QString, QStringList> mDependencies;
     QFormLayout *mNamesLay;
+    QComboBox *mTriggerSource;
+    QLineEdit *mTriggerLevel;
+    QSpinBox *mTriggerOffset;
+    float mTriggerWindow;
+    enum TriggerEdge {TriggerOff = 0, TriggerRising, TriggerFalling} mTriggerEdge;
+    float mOldTrigValue;
+    float mTrigCaptureTime;
     QVector<QColor> mColors;
     int mCurColor;
     QColor nextColor();
@@ -26,6 +33,7 @@ private:
     float mTime;
 
     void addPoint(QString name, float val);
+    void addPoint(QString name, float time, float val);
     void removeGraph(QString name);
 
     void addObjname(unsigned long serial, QString objname, int childCount=0);
@@ -34,6 +42,9 @@ private:
 
     void regDevice(ObjnetDevice *dev);
     bool regObject(ObjnetDevice *dev, ObjectInfo *obj);
+
+private slots:
+    void evalAutoTriggerLevel();
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
