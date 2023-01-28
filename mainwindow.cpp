@@ -30,7 +30,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->mainToolBar->addWidget(uartWidget);
 
     onbvs = new ObjnetVirtualServer(this);
-    connect(onbvs, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+    connect(onbvs, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
     connect(onbvs, SIGNAL(message(QString)), SLOT(logMessage(QString)));
 
 
@@ -44,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent) :
 //    //ui->mainToolBar->addWidget(can);
 
     UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbOnbThread(this));
-    connect(usbonb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+    connect(usbonb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString, const CommonMessage&)));
     usbMaster = new ObjnetMaster(usbonb);
     masters << usbMaster;
 
@@ -56,7 +56,7 @@ MainWindow::MainWindow(QWidget *parent) :
     masters << oviMaster;
 
     SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device());
-    connect(serialOnb, SIGNAL(message(QString,CommonMessage&)), SLOT(logMessage(QString,CommonMessage&)));
+    connect(serialOnb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
     serialMaster = new ObjnetMaster(serialOnb);
     masters << serialMaster;
 
@@ -339,7 +339,7 @@ void MainWindow::logMessage(ulong id, QByteArray &data, bool dir)
     status2->setText(srtext);
 }
 
-void MainWindow::logMessage(QString netname, CommonMessage &msg)
+void MainWindow::logMessage(QString netname, const CommonMessage &msg)
 {
     if (!mLogEnableBtn->isChecked())
         return;

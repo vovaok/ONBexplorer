@@ -295,7 +295,7 @@ void PlotWidget::addObjname(unsigned long serial, QString objname, int childCoun
 
     QPushButton *removeBtn = new QPushButton("×");
     removeBtn->setFixedSize(16, 16);
-    connect(removeBtn, &QPushButton::clicked, [=](){removeObjname(serial, objname); emit periodChanged(serial, objname, 100);});
+    connect(removeBtn, &QPushButton::clicked, [=](){removeObjname(serial, objname); emit periodChanged(serial, objname, 0);}); // disable auto-request
 
 //    mNamesLay->addWidget(chk, row, 0);
 //    mNamesLay->addWidget(lbl, row, 1);

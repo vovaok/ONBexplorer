@@ -86,7 +86,7 @@ private slots:
     void onMessageSent(ulong id, QByteArray &data);
 
     void logMessage(QString message);
-    void logMessage(QString netname, CommonMessage &msg);
+    void logMessage(QString netname, const CommonMessage &msg);
 
     void onBoardConnect();
     void onBoardDisconnect();
