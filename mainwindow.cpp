@@ -61,6 +61,7 @@ MainWindow::MainWindow(QWidget *parent) :
     masters << serialMaster;
 
     UdpOnbInterface *udponb = new UdpOnbInterface(this);
+    connect(udponb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
     udpMaster = new ObjnetMaster(udponb);
     masters << udpMaster;
 
@@ -104,9 +105,9 @@ MainWindow::MainWindow(QWidget *parent) :
     chkSvcOnly->setChecked(true);
     chkSuppressPolling->setChecked(true);
 
-    QGroupBox *logBox = new QGroupBox("Log");
+    mLogBox = new QGroupBox("Log");
     QVBoxLayout *logvlay = new QVBoxLayout;
-    logBox->setLayout(logvlay);
+    mLogBox->setLayout(logvlay);
     QHBoxLayout *loghlay = new QHBoxLayout;
     logvlay->addLayout(loghlay);
     logvlay->addWidget(editLog);
@@ -208,21 +209,21 @@ MainWindow::MainWindow(QWidget *parent) :
 
     mGraph = new PlotWidget(this);
     connect(mGraph, SIGNAL(periodChanged(unsigned long,QString,int)), SLOT(setAutoRequestPeriod(unsigned long,QString,int)));
-    QGroupBox *graphBox = new QGroupBox("Graph");
-    graphBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+    mGraphBox = new QGroupBox("Graph");
+    mGraphBox->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     QVBoxLayout *graphLay = new QVBoxLayout;
     graphLay->addWidget(mGraph);
-    graphBox->setLayout(graphLay);
+    mGraphBox->setLayout(graphLay);
 
 
-    QGridLayout *glay = new QGridLayout;
-    glay->setColumnStretch(1, 1);
-    glay->addWidget(mTree, 0, 0);
-    glay->addWidget(mInfoBox, 1, 0);
-    glay->addWidget(logBox, 2, 0, 1, 2);
-    glay->addWidget(graphBox, 0, 1, 2, 1);
-    glay->addWidget(mObjTable, 0, 2, 3, 1);
-    ui->centralWidget->setLayout(glay);
+    mainLayout = new QGridLayout;
+    mainLayout->setColumnStretch(1, 1);
+    mainLayout->addWidget(mTree, 0, 0);
+    mainLayout->addWidget(mInfoBox, 1, 0);
+    mainLayout->addWidget(mLogBox, 2, 0, 1, 2);
+    mainLayout->addWidget(mGraphBox, 0, 1, 2, 1);
+    mainLayout->addWidget(mObjTable, 0, 2, 3, 1);
+    ui->centralWidget->setLayout(mainLayout);
 
     QTimer *timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(onTimer()));
@@ -269,6 +270,31 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::resizeEvent(QResizeEvent *e)
+{
+    if (e->size().width() > e->size().height())
+    {
+        // horizontal layout
+        mainLayout->addWidget(mTree, 0, 0);
+        mainLayout->addWidget(mInfoBox, 1, 0);
+        mainLayout->addWidget(mLogBox, 2, 0, 1, 2);
+        mainLayout->addWidget(mGraphBox, 0, 1, 2, 1);
+        mainLayout->addWidget(mObjTable, 0, 2, 3, 1);
+    }
+    else
+    {
+        // vertical layout
+        mainLayout->addWidget(mTree, 0, 0);
+        mainLayout->addWidget(mInfoBox, 1, 0);
+        mainLayout->addWidget(mObjTable, 0, 1, 2, 1);
+        mainLayout->addWidget(mGraphBox, 2, 0, 1, 2);
+        mainLayout->addWidget(mLogBox, 3, 0, 1, 2);
+        mainLayout->setRowStretch(0, 1);
+        mainLayout->setRowStretch(2, 1);
+        mainLayout->setRowStretch(3, 0);
+    }
 }
 //---------------------------------------------------------------------------
 
@@ -451,7 +477,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
                 continue;
             if (info->isVolatile())
             {
-                qDebug() << "autoRequest" << info->name();
+//                qDebug() << "autoRequest" << info->name();
                 dev->autoRequest(info->name(), -1); // request autoRequest
             }
         }
@@ -939,27 +965,27 @@ void MainWindow::onDeviceMenu(QPoint p)
 
 void MainWindow::onObjectMenu(QPoint p)
 {
-    QTableWidgetItem *item = mObjTable->itemAt(p);
-    if (item)
-    {
-        item = mObjTable->item(item->row(), 0);
+//    QStandardItem *item = mObjTable->itemAt(p);
+//    if (item)
+//    {
+//        item = mObjTable->item(item->row(), 0);
 
-        QAction *graphAct;
-        if (!item->data(Qt::UserRole+4).toBool())
-        {
-            graphAct = new QAction("Plot graph", this);
-            connect(graphAct, &QAction::triggered, [=](){item->setData(Qt::UserRole+4, true); mGraph->show();});
-        }
-        else
-        {
-            graphAct = new QAction("Remove graph", this);
-            connect(graphAct, &QAction::triggered, [=](){item->setData(Qt::UserRole+4, false);});
-        }
-        QMenu menu(this);
-        menu.addAction(graphAct);
-        menu.setWindowModality(Qt::NonModal);
-        menu.exec(mObjTable->mapToGlobal(p));
-    }
+//        QAction *graphAct;
+//        if (!item->data(Qt::UserRole+4).toBool())
+//        {
+//            graphAct = new QAction("Plot graph", this);
+//            connect(graphAct, &QAction::triggered, [=](){item->setData(Qt::UserRole+4, true); mGraph->show();});
+//        }
+//        else
+//        {
+//            graphAct = new QAction("Remove graph", this);
+//            connect(graphAct, &QAction::triggered, [=](){item->setData(Qt::UserRole+4, false);});
+//        }
+//        QMenu menu(this);
+//        menu.addAction(graphAct);
+//        menu.setWindowModality(Qt::NonModal);
+//        menu.exec(mObjTable->mapToGlobal(p));
+//    }
 }
 
 void MainWindow::setAutoRequestPeriod(unsigned long serial, QString objname, int period_ms)

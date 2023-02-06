@@ -31,6 +31,9 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void resizeEvent(QResizeEvent *e);
+
 private:
     Ui::MainWindow *ui;
     QPushButton *btnUpgrade;
@@ -43,6 +46,10 @@ private:
     QGroupBox *mInfoBox;
     QMap<QString, QLineEdit*> mEdits;
     ObjTable *mObjTable;
+
+    QGroupBox *mGraphBox;
+    QGroupBox *mLogBox;
+    QGridLayout *mainLayout;
 
     UpgradeWidget *upg;
     QString firmwareDir;

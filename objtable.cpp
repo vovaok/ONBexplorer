@@ -1,151 +1,203 @@
 #include "objtable.h"
+#undef ByteArray
 
 ObjTable::ObjTable(QWidget *parent) :
-    QTableWidget(parent),
-    mDevice(nullptr)
-//    mOldTimestamp(0)
+    QTreeView(parent),
+    m_device(nullptr),
+    m_flag(false)
 {
     setMinimumWidth(412);
     setDragEnabled(true);
-    connect(this, SIGNAL(cellChanged(int,int)), SLOT(onCellChanged(int,int)));
-    connect(this, SIGNAL(cellDoubleClicked(int,int)), SLOT(onCellDblClick(int,int)));
+    setModel(&m_model);
+    setAnimated(true);
+//    setSelectionBehavior();
+    setSelectionMode(QTreeView::ExtendedSelection);
+    setEditTriggers(QTreeView::DoubleClicked | QTreeView::AnyKeyPressed);
 }
 
 void ObjTable::setDevice(ObjnetDevice *dev)
 {
-    mDevice = dev;   
+    m_device = dev;
 
     updateTable();
 }
 
 void ObjTable::updateTable()
 {
-    clear();
-    setRowCount(0);
+    disconnect(&m_model, &QStandardItemModel::itemChanged, this, &ObjTable::itemChanged);
+    m_model.clear();
 
-    if (mDevice)
+    if (m_device)
     {
-        int cnt = mDevice->objectCount();
-        setColumnCount(4);
-        setRowCount(cnt);
-        setColumnWidth(0, 120);
-        setColumnWidth(1, 120);
-        setColumnWidth(2, 80);
-        setColumnWidth(3, 50);
+        int cnt = m_device->objectCount();
+//        m_model.setColumnCount(4);
+//        m_model.setRowCount(cnt);
         QStringList objtablecolumns;
         objtablecolumns << "name" << "value" << "type" << "flags";
-        setHorizontalHeaderLabels(objtablecolumns);
+        m_model.setHorizontalHeaderLabels(objtablecolumns);
 
-        blockSignals(true);
+        QStandardItem *root = m_model.invisibleRootItem();
+
         for (int i=0; i<cnt; i++)
         {
-            ObjectInfo *info = mDevice->objectInfo(i);
-            if (!info)
-                continue;
-
-            setVerticalHeaderItem(i, new QTableWidgetItem(QString::number(i)));
-
-            QString name = info->name();
-            setItem(i, 1, new QTableWidgetItem("n/a"));
-            QString wt = QMetaType::typeName(info->wType());
-            if (wt == "QString")
-                wt = "string";
-            else if (wt == "QByteArray" && info->description().writeSize)
-                wt = "common";
-            if (info->wCount() > 1)
-                wt += "[" + QString::number(info->wCount()) + "]";
-            QString rt = QMetaType::typeName(info->rType());
-            if (rt == "QString")
-                rt = "string";
-            else if (rt == "QByteArray" && info->description().readSize)
-                rt = "common";
-            if (info->rCount() > 1)
-                rt += "[" + QString::number(info->rCount()) + "]";
-            unsigned char fla = info->flags();
-            QString typnam;
-
-
-            if (fla & ObjectInfo::Function)
+            ObjectInfo *info = m_device->objectInfo(i);
+            if (info)
             {
-                typnam = wt + "(" + rt + ")";
-                setItem(i, 0, new QTableWidgetItem(name));
-                QPushButton *btn = new QPushButton(name);
-                setCellWidget(i, 0, btn);
-                if (fla & ObjectInfo::Read) // na samom dele Write, no tut naoborot)
-                    connect(btn, &QPushButton::clicked, [this, name](){if (mDevice) mDevice->sendObject(name);});
-                else
-                    connect(btn, &QPushButton::clicked, [this, name](){if (mDevice) mDevice->requestObject(name);});
+                root->appendRow(createRow(info));
+                m_device->requestObject(info->name());
             }
             else
-            {
-                if (fla & ObjectInfo::Dual)
-                    typnam = "r:"+wt+"/w:"+rt;
-                else if (fla & ObjectInfo::Read)
-                    typnam = rt;
-                else if (fla & ObjectInfo::Write)
-                    typnam = wt;
-
-                setItem(i, 0, new QTableWidgetItem(name));
-                mDevice->requestObject(name);
-            }
-
-            setItem(i, 2, new QTableWidgetItem(typnam));
-            QString flags = "-fdhsrwv";
-            for (int j=0; j<8; j++)
-                if (!(fla & (1<<j)))
-                    flags[7-j] = '-';
-            setItem(i, 3, new QTableWidgetItem(flags));
-
-            item(i, 0)->setData(Qt::UserRole, i);
+                root->appendRow(new QStandardItem("ERROR"));
         }
-        blockSignals(false);
+
+        for (int i=0; i<cnt; i++)
+        {
+            ObjectInfo *info = m_device->objectInfo(i);
+            QString name = info->name();
+            if (info->flags() & ObjectInfo::Function)
+            {
+                QPushButton *btn = new QPushButton(name);
+                setIndexWidget(m_model.index(i, 0), btn);
+                if (info->flags() & ObjectInfo::Read) // na samom dele Write, no tut naoborot)
+                    connect(btn, &QPushButton::clicked, [this, name](){if (m_device) m_device->sendObject(name);});
+                else
+                    connect(btn, &QPushButton::clicked, [this, name](){if (m_device) m_device->requestObject(name);});
+            }
+        }
+
+        setColumnWidth(0, 120);
+        setColumnWidth(1, 150);
+        setColumnWidth(2, 80);
+        setColumnWidth(3, 50);
 
 //        setContextMenuPolicy(Qt::CustomContextMenu);
 //        connect(this, SIGNAL(customContextMenuRequested(QPoint)), SLOT(onObjectMenu(QPoint)));
+    }
+    connect(&m_model, &QStandardItemModel::itemChanged, this, &ObjTable::itemChanged);
+}
+
+QList<QStandardItem *> ObjTable::createRow(ObjectInfo *info)
+{
+    QList<QStandardItem *> items;
+    if (!info)
+        return items;
+
+    QString name = info->name();
+
+    QStandardItem *nameItem = new QStandardItem(name);
+    nameItem->setData(info->id(), Qt::UserRole);
+    nameItem->setEditable(false);
+
+    QString wt = QMetaType::typeName(info->wType());
+    if (wt == "QString")
+        wt = "string";
+    else if (wt == "QByteArray" && info->description().writeSize)
+        wt = "common";
+
+    QString rt = QMetaType::typeName(info->rType());
+    if (rt == "QString")
+        rt = "string";
+    else if (rt == "QByteArray" && info->description().readSize)
+        rt = "common";
+
+    unsigned char flags = info->flags();
+    QString typeName;
+
+    if (info->isCompound())
+        typeName = "struct";
+    else if (flags & ObjectInfo::Function)
+        typeName = wt + "(" + rt + ")";
+    else if (flags & ObjectInfo::Dual)
+        typeName = "r:"+wt+"/w:"+rt;
+    else if (flags & ObjectInfo::Read)
+        typeName = rt;
+    else if (flags & ObjectInfo::Write)
+        typeName = wt;
+
+    QString flagString = "-fdhsrwv";
+    for (int j=0; j<8; j++)
+        if (!(flags & (1<<j)))
+            flagString[7-j] = '-';
+
+    if (info->isArray())
+    {
+        int cnt = info->isReadable()? info->rCount(): info->wCount();
+        for (int i=0; i<cnt; i++)
+        {
+            QString key = QString("[%2]").arg(i);
+            QList<QStandardItem *> items;
+            items << new QStandardItem(key);
+            items << new QStandardItem("n/a");
+            items << new QStandardItem(typeName);
+//            items << new QStandardItem(flagString);
+            nameItem->appendRow(items);
+        }
+        typeName += QString("[%1]").arg(cnt);
+    }
+    else if (info->isCompound())
+    {
+        for (int i=0; i<info->subobjectCount(); i++)
+            nameItem->appendRow(createRow(&info->subobject(i)));
+    }
+
+    QStandardItem *valueItem = new QStandardItem("n/a");
+    valueItem->setData(info->id(), Qt::UserRole);
+    if (info->isCompound() || info->isArray() || !info->isReadable())
+    {
+        valueItem->setEditable(false);
+    }
+
+    QStandardItem *typeItem = new QStandardItem(typeName);
+    typeItem->setEditable(false);
+    QStandardItem *flagItem = new QStandardItem(flagString);
+    flagItem->setEditable(false);
+
+    items << nameItem;
+    items << valueItem;
+    items << typeItem;
+    items << flagItem;
+    return items;
+}
+
+void ObjTable::updateItem(QStandardItem *parentItem, QString name, QVariant value)
+{
+    for (int i=0; i<parentItem->rowCount(); i++)
+    {
+        QStandardItem *item = parentItem->child(i);
+        if (item->text() == name)
+        {
+            QStandardItem *valueItem = m_model.itemFromIndex(item->index().siblingAtColumn(1));
+            m_flag = true;
+            valueItem->setText(valueToString(value));
+            m_flag = false;
+            if (item->hasChildren())
+            {
+                if (value.type() == QMetaType::QVariantList)
+                {
+                    QVariantList vlist = value.toList();
+                    for (int i=0; i<vlist.size(); i++)
+                    {
+                        QString key = QString("[%2]").arg(i);
+                        updateItem(item, key, vlist[i]);
+                    }
+                }
+                else if (value.type() == QMetaType::QVariantMap)
+                {
+                    QVariantMap vmap = value.toMap();
+                    for (QString key: vmap.keys())
+                        updateItem(item, key, vmap[key]);
+                }
+            }
+            break;
+        }
     }
 }
 
 void ObjTable::updateObject(QString name, QVariant value)
 {
     ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
-    if (dev != mDevice)
-        return;
-
-    for (int i=0; i<rowCount(); i++)
-    {
-        if (!item(i, 0))
-            continue;
-        QString nm = item(i, 0)->text();
-        if (nm == name)
-        {
-            QVariantList list = value.toList();
-
-            QString val;
-            if (list.isEmpty())
-                val = valueToString(value);
-            else
-            {
-                for (int j=0; j<list.size(); j++)
-                {
-                    if (j)
-                        val += "; ";
-                    val += valueToString(list[j]);
-                }
-            }
-
-
-            blockSignals(true);
-            item(i, 1)->setText(val);
-//            if (mLogs.contains(nm))
-//                mLogs[nm]->append(val);
-//            if (item(i, 0)->data(Qt::UserRole+4).toBool())
-//            {
-//                mGraph->addPoint(nm, value.toFloat());
-//            }
-            blockSignals(false);
-            break;
-        }
-    }
+    if (dev == m_device)
+        updateItem(m_model.invisibleRootItem(), name, value);
 }
 
 void ObjTable::updateTimedObject(QString name, uint32_t timestamp, QVariant value)
@@ -154,10 +206,58 @@ void ObjTable::updateTimedObject(QString name, uint32_t timestamp, QVariant valu
     updateObject(name, value);
 }
 
+QVariant ObjTable::readItem(ObjectInfo *info, QStandardItem *item)
+{
+    if (info->isArray())
+    {
+        QVariantList vlist;
+        int cnt = info->isReadable()? info->rCount(): info->wCount();
+        for (int i=0; i<cnt; i++)
+            vlist << valueFromString(item->child(i, 1)->text(), info->rType());
+        return vlist;
+    }
+    else if (info->isCompound())
+    {
+        QVariantMap vmap;
+        for (int i=0; i<info->subobjectCount(); i++)
+        {
+            ObjectInfo *sub = &info->subobject(i);
+            vmap[item->child(i)->text()] = readItem(sub, item->child(i));
+        }
+        return vmap;
+    }
+
+    QString text = m_model.itemFromIndex(item->index().siblingAtColumn(1))->text();
+    return valueFromString(text, info->rType());
+}
+
+void ObjTable::itemChanged(QStandardItem *item)
+{
+    if (m_flag)
+        return;
+
+    while (item->index().siblingAtColumn(0).parent().isValid())
+        item = m_model.itemFromIndex(item->index().siblingAtColumn(0).parent());
+
+    if (m_device)
+    {
+        uint8_t oid = item->data(Qt::UserRole).toInt();
+        ObjectInfo *info = m_device->objectInfo(oid);
+        QVariant val = readItem(info, item);
+        info->fromVariant(val);
+
+        if (item->column() != 0)
+            item = m_model.itemFromIndex(item->index().siblingAtColumn(0));
+        updateItem(m_model.invisibleRootItem(), item->text(), val);
+
+        if (!(info->flags() & ObjectInfo::Function))
+            m_device->sendObject(info->name());
+    }
+}
+
 QString ObjTable::valueToString(QVariant value)
 {
     QString val;
-#undef ByteArray
     if (!value.isValid())
         return "<invalid>";
     if (value.type() == QVariant::ByteArray)
@@ -201,8 +301,50 @@ QString ObjTable::valueToString(QVariant value)
             QQuaternion q = value.value<QQuaternion>();
             val = QString().sprintf("(w=%.3f, x=%.3f, y=%.3f, z=%.3f)", q.scalar(), q.x(), q.y(), q.z());
         }
+        else if (mt == QMetaType::QVariantList)
+        {
+            QStringList items;
+            QVariantList vlist = value.toList();
+            for (QVariant v: vlist)
+                items << valueToString(v);
+            val = QString("[%1]").arg(items.join(", "));
+        }
+        else if (mt == QMetaType::QVariantMap)
+        {
+            QStringList items;
+            QVariantMap vmap = value.toMap();
+            for (QString key: vmap.keys())
+                items << QString("%1: %2").arg(key).arg(valueToString(vmap[key]));
+            val = QString("{%1}").arg(items.join(", "));
+        }
         else
             val = value.toString();
+    }
+    return val;
+}
+
+QVariant ObjTable::valueFromString(QString s, ObjectInfo::Type t)
+{
+    QVariant val(s);
+    if (t == ObjectInfo::Common)
+    {
+        return QByteArray::fromHex(val.toByteArray());
+    }
+    else if (t == ObjectInfo::Char)
+    {
+        if (s.length() >= 1)
+        {
+            val = s.toLatin1().data()[0];
+            val.convert(QMetaType::Char);
+            return val;
+        }
+        return QVariant(); // invalid
+    }
+    else
+    {
+        if (val.toString().startsWith("0x"))
+            val = val.toString().mid(2).toUInt(nullptr, 16);
+        val.convert(t);
     }
     return val;
 }
@@ -211,14 +353,16 @@ void ObjTable::startDrag(Qt::DropActions supportedActions)
 {
     Q_UNUSED(supportedActions);
 
-    if (!mDevice)
+    if (!m_device)
         return;
 
     QList<ObjectInfo*> selectedObjects;
-    for (QTableWidgetItem *item: selectedItems())
+    for (QModelIndex &index: selectedIndexes())
     {
-        int idx = item->data(Qt::UserRole).toInt();
-        selectedObjects << mDevice->objectInfo(idx);
+        if (index.column() > 0)
+            continue;
+        int idx = m_model.data(index, Qt::UserRole).toInt();
+        selectedObjects << m_device->objectInfo(idx);
     }
 
 //    selectRow(currentRow());
@@ -228,31 +372,31 @@ void ObjTable::startDrag(Qt::DropActions supportedActions)
     QMimeData *mimeData = new QMimeData;
 
 //    QString mimetype = "application/x-onb-object";
-//    if (!mDevice->objectInfo(idx)->isWritable()) // inverted interpretation of read/write again
+//    if (!m_device->objectInfo(idx)->isWritable()) // inverted interpretation of read/write again
 //        mimetype = "application/x-onb-nonreadable";
-//    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::Void)
+//    else if (m_device->objectInfo(idx)->wType() == ObjectInfo::Void)
 //        mimetype = "application/x-onb-object-void";
-//    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::Common)
+//    else if (m_device->objectInfo(idx)->wType() == ObjectInfo::Common)
 //        mimetype = "application/x-onb-object-common";
-//    else if (mDevice->objectInfo(idx)->wType() == ObjectInfo::String)
+//    else if (m_device->objectInfo(idx)->wType() == ObjectInfo::String)
 //        mimetype = "application/x-onb-object-string";
 
 //    QByteArray ba;
-//    mDevice->objectInfo(idx)->description().read(ba);
+//    m_device->objectInfo(idx)->description().read(ba);
 //
 //    mimeData->setData("application/x-onb-object-desc", ba);
 //    mimeData->setData("application/x-onb-object-name", it->text().toLocal8Bit());
 
-//    int wcnt = mDevice->objectInfo(idx)->wCount();
+//    int wcnt = m_device->objectInfo(idx)->wCount();
 //    if (wcnt > 1)
 //    {
 //        QByteArray baSize(reinterpret_cast<const char*>(&wcnt), sizeof(int));
 //        mimeData->setData("application/x-onb-object-array-size", baSize);
 //    }
 
-    QByteArray devptr(reinterpret_cast<const char*>(&mDevice), sizeof(ObjnetDevice*));
+    QByteArray devptr(reinterpret_cast<const char*>(&m_device), sizeof(ObjnetDevice*));
     mimeData->setData("application/x-onb-device", devptr);
-//    ObjectInfo *objinfo = mDevice->objectInfo(idx);
+//    ObjectInfo *objinfo = m_device->objectInfo(idx);
     if (selectedObjects.count() == 1)
     {
         QByteArray objptr(reinterpret_cast<const char*>(&selectedObjects[0]), sizeof(ObjectInfo*));
@@ -278,36 +422,3 @@ void ObjTable::startDrag(Qt::DropActions supportedActions)
 //    drag->setPixmap(pixmap);
     drag->exec();
 }
-
-void ObjTable::onCellChanged(int row, int col)
-{
-    if (col != 1)
-        return;
-    if (mDevice)
-    {
-        int idx = item(row, 0)->data(Qt::UserRole).toInt();
-        ObjectInfo *info = mDevice->objectInfo(idx);
-        QVariant val = item(row, col)->text();
-        if (info->rType() == ObjectInfo::Common)
-        {
-            val = QByteArray::fromHex(val.toByteArray());
-        }
-        else
-        {
-            if (val.toString().startsWith("0x"))
-                val = val.toString().mid(2).toUInt(nullptr, 16);
-            val.convert(info->rType());
-        }
-        info->fromVariant(val);
-        if (info->flags() & ObjectInfo::Function)
-            return;
-        mDevice->sendObject(info->name());
-    }
-}
-
-void ObjTable::onCellDblClick(int row, int col)
-{
-
-}
-
-

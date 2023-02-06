@@ -1,7 +1,8 @@
 #ifndef OBJTABLE_H
 #define OBJTABLE_H
 
-#include <QTableWidget>
+#include <QTreeView>
+#include <QStandardItemModel>
 #include <QPushButton>
 #include <QDrag>
 #include <QMimeData>
@@ -11,22 +12,27 @@
 
 using namespace Objnet;
 
-class ObjTable : public QTableWidget
+class ObjTable : public QTreeView
 {
     Q_OBJECT
 
 private:
-    ObjnetDevice *mDevice;
-//    uint32_t mOldTimestamp;
+    ObjnetDevice *m_device;
+    QStandardItemModel m_model;
+    bool m_flag;
 
     QString valueToString(QVariant value);
+    QVariant valueFromString(QString s, ObjectInfo::Type t);
+
+    QList<QStandardItem *> createRow(ObjectInfo *info);
+    void updateItem(QStandardItem *parent, QString name, QVariant value);
+    QVariant readItem(ObjectInfo *info, QStandardItem *item);
 
 protected:
-    void startDrag(Qt::DropActions supportedActions);
+    void startDrag(Qt::DropActions supportedActions) override;
 
 private slots:
-    void onCellChanged(int row, int col);
-    void onCellDblClick(int row, int col);
+    void itemChanged(QStandardItem *item);
     void updateTable();
 
 public:
