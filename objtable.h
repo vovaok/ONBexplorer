@@ -32,6 +32,7 @@ protected:
     void startDrag(Qt::DropActions supportedActions) override;
 
 private slots:
+    void onClick(const QModelIndex &index);
     void itemChanged(QStandardItem *item);
     void updateTable();
 

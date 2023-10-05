@@ -101,6 +101,7 @@ private slots:
     void resetStat();
 
     void onTimer();
+    void onConnTimer();
 
     void onDevAdded(unsigned char netAddress, const QByteArray &locData);
     void onDevConnected(unsigned char netAddress);

@@ -273,6 +273,7 @@ void PlotWidget::evalAutoTriggerLevel()
 void PlotWidget::addObjname(unsigned long serial, QString objname, int childCount)
 {
     int row = getRow(serial, objname);
+    QString graphname = mDevices[serial] + "." + objname;
 
     QCheckBox *chk = new QCheckBox(objname);
     chk->setChecked(true);
@@ -293,6 +294,15 @@ void PlotWidget::addObjname(unsigned long serial, QString objname, int childCoun
     spin->setFixedWidth(60);
     connect(spin, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int val){emit periodChanged(serial, objname, val);});
 
+    QComboBox *combo = new QComboBox();
+    combo->addItems(QStringList() << "×0.001" << "×0.01" << "×0.1" << "×1" << "×10" << "×100" << "×1000");
+    combo->setFixedWidth(60);
+    combo->setCurrentIndex(3);
+    connect(combo, &QComboBox::currentTextChanged, [=](QString text)
+    {
+        m_zoomY[graphname] = text.mid(1).toFloat();
+    });
+
     QPushButton *removeBtn = new QPushButton("×");
     removeBtn->setFixedSize(16, 16);
     connect(removeBtn, &QPushButton::clicked, [=](){removeObjname(serial, objname); emit periodChanged(serial, objname, 0);}); // disable auto-request
@@ -305,11 +315,11 @@ void PlotWidget::addObjname(unsigned long serial, QString objname, int childCoun
     QHBoxLayout *hlay = new QHBoxLayout;
     hlay->addWidget(spin);
     hlay->addWidget(removeBtn);
+    hlay->addWidget(combo);
     mNamesLay->insertRow(row, chk, hlay);
 
     if (!childCount)
     {
-        QString graphname = mDevices[serial] + "." + objname;
         mGraph->addGraph(graphname, nextColor(), 2.0f);
         mTriggerSource->addItem(graphname);
     }
@@ -422,7 +432,10 @@ void PlotWidget::addPoint(QString name, float val)
 
 void PlotWidget::addPoint(QString name, float time, float val)
 {
-    mGraph->addPoint(name, time, val);
+    float zoomY = 1;
+    if (m_zoomY.contains(name))
+        zoomY = m_zoomY[name];
+    mGraph->addPoint(name, time, val*zoomY);
 
     if (name == mTriggerSource->currentText())
     {
@@ -470,12 +483,20 @@ void PlotWidget::updateObject(QString name, QVariant value)
     int ser = dev->serial();
     if (mDevices.contains(ser))
     {
+        ObjectInfo *o = dev->objectInfo(name);
         if (mVarNames[ser].contains(name))
         {
             QString graphname = mDevices[ser] + "." + name;
             QVariantList list = value.toList();
             if (list.isEmpty())
                 addPoint(graphname, value.toFloat());
+            else if (o && !o->wCount()) // this is buffer (BLEAT WTF??)
+            {
+                for (int i=0; i<list.size(); i++)
+                {
+                    addPoint(graphname, list[i].toFloat());
+                }
+            }
             else
             {
                 for (int i=0; i<list.size(); i++)
@@ -537,6 +558,7 @@ void PlotWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant va
     int ser = dev->serial();
     if (mDevices.contains(ser))
     {
+        ObjectInfo *o = dev->objectInfo(name);
         if (mVarNames[ser].contains(name))
         {
             if (!mTimestamp0 || timestamp < mTimestamp0)
@@ -547,6 +569,14 @@ void PlotWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant va
             QVariantList list = value.toList();
             if (list.isEmpty())
                 addPoint(graphname, mTime, value.toFloat());
+            else if (o && !o->wCount()) // this is buffer (BLEAT WTF??)
+            {
+                for (int i=0; i<list.size(); i++)
+                {
+                    float time = mTime + i * 0.00005f; /// @todo saw out this HARDCODE!
+                    addPoint(graphname, time, list[i].toFloat());
+                }
+            }
             else
             {
                 for (int i=0; i<list.size(); i++)

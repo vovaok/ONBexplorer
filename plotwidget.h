@@ -29,6 +29,8 @@ private:
     int mCurColor;
     QColor nextColor();
 
+    QMap<QString, float> m_zoomY;
+
     int mTimestamp0;
     float mTime;
 

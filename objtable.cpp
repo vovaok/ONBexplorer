@@ -13,6 +13,8 @@ ObjTable::ObjTable(QWidget *parent) :
 //    setSelectionBehavior();
     setSelectionMode(QTreeView::ExtendedSelection);
     setEditTriggers(QTreeView::DoubleClicked | QTreeView::AnyKeyPressed);
+
+    connect(this, &ObjTable::clicked, this, &ObjTable::onClick);
 }
 
 void ObjTable::setDevice(ObjnetDevice *dev)
@@ -44,7 +46,8 @@ void ObjTable::updateTable()
             if (info)
             {
                 root->appendRow(createRow(info));
-                m_device->requestObject(info->name());
+                if (info->isWritable() && !info->isInvokable()) // read-write naoborot
+                    m_device->requestObject(info->name());
             }
             else
                 root->appendRow(new QStandardItem("ERROR"));
@@ -421,4 +424,12 @@ void ObjTable::startDrag(Qt::DropActions supportedActions)
 //    drag->setHotSpot();
 //    drag->setPixmap(pixmap);
     drag->exec();
+}
+
+void ObjTable::onClick(const QModelIndex &index)
+{
+    if (index.column() > 0)
+        return;
+    QString name = m_model.itemFromIndex(index.siblingAtColumn(0))->text();
+    m_device->requestObject(name);
 }

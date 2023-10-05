@@ -260,6 +260,10 @@ MainWindow::MainWindow(QWidget *parent) :
     });
     ui->mainToolBar->addWidget(fwFolderBtn);
 
+    QTimer *conntimer = new QTimer(this);
+    connect(conntimer, &QTimer::timeout, this, &MainWindow::onConnTimer);
+    conntimer->start(250);
+
 //    mLogEnableBtn->setChecked(true);
 
 //    QPushButton *b = new QPushButton("upgrade");
@@ -475,7 +479,7 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
             ObjectInfo *info = dev->objectInfo(i);
             if (!info)
                 continue;
-            if (info->isVolatile())
+            if (info->isVolatile() && !info->isBuffer())
             {
 //                qDebug() << "autoRequest" << info->name();
                 dev->autoRequest(info->name(), -1); // request autoRequest
@@ -491,7 +495,22 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
             ed->clear();
     }
 
-    mObjTable->setDevice(device);
+    if (device)
+    {
+        if (device->isReady())
+        {
+            mObjTable->setDevice(device);
+        }
+        else
+        {
+            for (int i=0; i<device->objectCount(); i++)
+                if (!device->objectInfo(i))
+                {
+                    qDebug() << "request object info" << i;
+                    device->requestObjectInfo(i);
+                }
+        }
+    }
 }
 
 //void MainWindow::onCellChanged(int row, int col)
@@ -644,6 +663,21 @@ void MainWindow::onTimer()
 //            mGraph->addPoint("angle4", time, tempEnc1[7]);
 
 //            time+=0.03;
+}
+
+void MainWindow::onConnTimer()
+{
+    if (device)
+    {
+        if (!device->isInfoValid())
+            device->requestMetaInfo();
+        else if (!device->isReady())
+        {
+            for (int i=0; i<device->objectCount(); i++)
+                if (!device->objectInfo(i) || !device->objectInfo(i)->isValid())
+                    device->requestObjectInfo(i);
+        }
+    }
 }
 //---------------------------------------------------------------------------
 
