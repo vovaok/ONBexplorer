@@ -18,10 +18,16 @@ CONFIG(release,debug|release) {
 
 CONFIG += c++11
 
-COMPONENTS = d:/projects/qt/components5
+# Uncomment supported ONB interfaces
+#DEFINES += ONB_SERIAL
+#DEFINES += ONB_USBHID
+DEFINES += ONB_UDP
+#DEFINES += ONB_VIRTUAL
+
+COMPONENTS = $$PWD/../components5
 include($$COMPONENTS/onb/onb.pri)
-include($$COMPONENTS/commlib/commlib.pri)
-include($$COMPONENTS/panel3d/panel3d.pri)
+#include($$COMPONENTS/commlib/commlib.pri)
+#include($$COMPONENTS/panel3d/panel3d.pri)
 include($$COMPONENTS/megaWidgets/megaWidgets.pri)
 
 win32: {
@@ -31,14 +37,14 @@ win32: {
 }
 
 SOURCES += main.cpp\
-    ../../components5/onb/udponbinterface.cpp \
-        mainwindow.cpp \
+#    ../../components5/onb/udponbinterface.cpp \
+    mainwindow.cpp \
     upgradewidget.cpp \
     plotwidget.cpp \
     objtable.cpp
 
 HEADERS  += mainwindow.h \
-    ../../components5/onb/udponbinterface.h \
+#    ../../components5/onb/udponbinterface.h \
     plotwidget.h \
     upgradewidget.h \
     objtable.h

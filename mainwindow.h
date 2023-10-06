@@ -3,15 +3,24 @@
 
 #include <QMainWindow>
 #include <QtWidgets>
-#include "serialonbinterface.h"
-#include "objnetmaster.h"
-#include "objnetnode.h"
-#include "serialportwidget.h"
 
+#if defined(ONB_SERIAL)
+#include "serialonbinterface.h"
+#include "serialportwidget.h"
+#endif
+#if defined(ONB_VIRTUAL)
 #include "objnetvirtualinterface.h"
 #include "objnetvirtualserver.h"
+#endif
+#if defined(ONB_USBHID)
 #include "usbonbinterface.h"
+#endif
+#if defined(ONB_UDP)
 #include "udponbinterface.h"
+#endif
+
+#include "objnetmaster.h"
+#include "objnetnode.h"
 
 #include "objtable.h"
 #include "plotwidget.h"
@@ -37,7 +46,7 @@ protected:
 private:
     Ui::MainWindow *ui;
     QPushButton *btnUpgrade;
-    QPushButton *mOviServerBtn, *mLogEnableBtn, *btnResetStat;
+    QPushButton *mLogEnableBtn, *btnResetStat;
     QTextEdit *editLog;
     QCheckBox *chkSvcOnly, *chkSuppressPolling;
     QLabel *status, *status2, *status3;
@@ -60,17 +69,25 @@ private:
 
     int sent, received;
 
+#if defined(ONB_SERIAL)
 //    DonglePort *uart;
     SerialPortWidget *uartWidget;
+#endif
 
     QVector<ObjnetMaster *> masters;
-    ObjnetMaster *serialMaster, *usbMaster, *oviMaster, *udpMaster;
-    ObjnetDevice *device;
+    ObjnetMaster *serialMaster = nullptr;
+    ObjnetMaster *usbMaster = nullptr;
+    ObjnetMaster *oviMaster = nullptr;
+    ObjnetMaster *udpMaster = nullptr;
+    ObjnetDevice *device = nullptr;
 
     QElapsedTimer mEtimer;
 
+#if defined(ONB_VIRTUAL)
     ObjnetVirtualServer *onbvs;
     ObjnetVirtualInterface *onbvi;
+    QPushButton *mOviServerBtn,
+#endif
 
     QMap<QString, QTextEdit*> mLogs;
 

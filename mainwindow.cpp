@@ -10,10 +10,6 @@ MainWindow::MainWindow(QWidget *parent) :
     device(0L),
     lastDeviceId(0)
 {
-
-    std::string str = "preved";
-
-
     ui->setupUi(this);
     setWindowTitle("ONB Explorer");
 //    resize(800, 500);
@@ -23,16 +19,35 @@ MainWindow::MainWindow(QWidget *parent) :
 //    uart->disableAutoRead();
 //    uart->setBaudRate(1000000);
 
+#if defined(ONB_SERIAL)
     uartWidget = new SerialPortWidget();
     uartWidget->autoConnect("ONB");
     uartWidget->disableAutoRead();
     uartWidget->setBaudrate(1000000);
     ui->mainToolBar->addWidget(uartWidget);
 
+    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device());
+    connect(serialOnb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
+    serialMaster = new ObjnetMaster(serialOnb);
+    masters << serialMaster;
+#endif
+
+#if defined(ONB_VIRTUAL)
     onbvs = new ObjnetVirtualServer(this);
     connect(onbvs, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
     connect(onbvs, SIGNAL(message(QString)), SLOT(logMessage(QString)));
+    //    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
+    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
+    oviMaster = new ObjnetMaster(onbvi);
+    oviMaster->setName("main");
+    onbvi->setActive(true);
+    masters << oviMaster;
 
+    mOviServerBtn = new QPushButton("ONB server");
+    mOviServerBtn->setCheckable(true);
+    connect(mOviServerBtn, SIGNAL(clicked(bool)), onbvs, SLOT(setEnabled(bool)));
+    ui->mainToolBar->addWidget(mOviServerBtn);
+#endif
 
 //    can = new SerialCan(uart, SerialCan::protoCommon);
 //    //can->setBaudrate(1000000);
@@ -43,47 +58,29 @@ MainWindow::MainWindow(QWidget *parent) :
 //    connect(can, SIGNAL(disconnected()), this, SLOT(onBoardDisconnect()));
 //    //ui->mainToolBar->addWidget(can);
 
+#if defined(ONB_USBHID)
     UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbOnbThread(this));
     connect(usbonb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString, const CommonMessage&)));
     usbMaster = new ObjnetMaster(usbonb);
     masters << usbMaster;
+#endif
 
-//    onbvi = new ObjnetVirtualInterface("main", "192.168.1.1");
-    onbvi = new ObjnetVirtualInterface("main", "127.0.0.1");
-    oviMaster = new ObjnetMaster(onbvi);
-    oviMaster->setName("main");
-    onbvi->setActive(true);
-    masters << oviMaster;
-
-    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device());
-    connect(serialOnb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
-    serialMaster = new ObjnetMaster(serialOnb);
-    masters << serialMaster;
-
+#if defined(ONB_UDP)
     UdpOnbInterface *udponb = new UdpOnbInterface(this);
     connect(udponb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
     udpMaster = new ObjnetMaster(udponb);
     masters << udpMaster;
+#endif
 
     for (ObjnetMaster *m: masters)
     {
-        connect(m, SIGNAL(devAdded(unsigned char,QByteArray)), this, SLOT(onDevAdded(unsigned char,QByteArray)));
-        connect(m, SIGNAL(devConnected(unsigned char)), this, SLOT(onDevConnected(unsigned char)));
-        connect(m, SIGNAL(devDisconnected(unsigned char)), this, SLOT(onDevDisconnected(unsigned char)));
-        connect(m, SIGNAL(devRemoved(unsigned char)), this, SLOT(onDevRemoved(unsigned char)));
-        connect(m, SIGNAL(serviceMessageAccepted(unsigned char,SvcOID,QByteArray)), this, SLOT(onServiceMessageAccepted(unsigned char,SvcOID,QByteArray)));
-        connect(m, SIGNAL(globalMessage(unsigned char)), SLOT(onGlobalMessage(unsigned char)));
-
+        connect(m, &ObjnetMaster::devAdded, this, &MainWindow::onDevAdded);
+        connect(m, &ObjnetMaster::devConnected, this, &MainWindow::onDevConnected);
+        connect(m, &ObjnetMaster::devDisconnected, this, &MainWindow::onDevDisconnected);
+        connect(m, &ObjnetMaster::devRemoved, this, &MainWindow::onDevRemoved);
+        connect(m, &ObjnetMaster::serviceMessageAccepted, this, &MainWindow::onServiceMessageAccepted);
+        connect(m, &ObjnetMaster::globalMessage, this, &MainWindow::onGlobalMessage);
     }
-
-
-
-
-
-    mOviServerBtn = new QPushButton("ONB server");
-    mOviServerBtn->setCheckable(true);
-    connect(mOviServerBtn, SIGNAL(clicked(bool)), onbvs, SLOT(setEnabled(bool)));
-    ui->mainToolBar->addWidget(mOviServerBtn);
 
     mLogEnableBtn = new QPushButton("Enable log");
     mLogEnableBtn->setCheckable(true);
@@ -183,22 +180,36 @@ MainWindow::MainWindow(QWidget *parent) :
     mObjTable = new ObjTable();
 
     QStringList strings;
-    strings << "<Usb>" << "0" << "0" << "FFFFFFFF";
-    QTreeWidgetItem *item = new QTreeWidgetItem(strings);
-    mTree->addTopLevelItem(item);
-    item->setExpanded(true);
-    strings[0] = "<WiFi>";
-    item = new QTreeWidgetItem(strings);
-    mTree->addTopLevelItem(item);
-    item->setExpanded(true);
-    strings[0] = "<Serial>";
-    item = new QTreeWidgetItem(strings);
-    mTree->addTopLevelItem(item);
-    item->setExpanded(true);
-    strings[0] = "<Udp>";
-    item = new QTreeWidgetItem(strings);
-    mTree->addTopLevelItem(item);
-    item->setExpanded(true);
+    strings << "<Interface>" << "0" << "0" << "FFFFFFFF";
+    QTreeWidgetItem *item;
+    if (serialMaster)
+    {
+        strings[0] = "<Serial>";
+        item = new QTreeWidgetItem(strings);
+        mTree->addTopLevelItem(item);
+        item->setExpanded(true);
+    }
+    if (oviMaster)
+    {
+        strings[0] = "<WiFi>";
+        item = new QTreeWidgetItem(strings);
+        mTree->addTopLevelItem(item);
+        item->setExpanded(true);
+    }
+    if (usbMaster)
+    {
+        strings[0] = "<Usb>";
+        item = new QTreeWidgetItem(strings);
+        mTree->addTopLevelItem(item);
+        item->setExpanded(true);
+    }
+    if (udpMaster)
+    {
+        strings[0] = "<Udp>";
+        item = new QTreeWidgetItem(strings);
+        mTree->addTopLevelItem(item);
+        item->setExpanded(true);
+    }
 
     status = new QLabel("");
     ui->statusBar->addWidget(status);
@@ -231,9 +242,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     mEtimer.start();
 
-
+#if defined(ONB_VIRTUAL)
     mOviServerBtn->setChecked(true);
     onbvs->setEnabled(true);
+#endif
 
     QLineEdit *cedit = new QLineEdit();
     QPushButton *ubtn = new QPushButton("Upgrade");
