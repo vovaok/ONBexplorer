@@ -105,6 +105,7 @@ private slots:
 //    void onCellChanged(int row, int col);
 //    void onCellDblClick(int row, int col);
 //    void onObjectReceive(QString name, QVariant value);
+    void changeLayout(Qt::Orientation orient);
 
     void onMessage(ulong id, QByteArray &data);
     void onMessageSent(ulong id, QByteArray &data);

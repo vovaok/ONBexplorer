@@ -12,7 +12,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     setWindowTitle("ONB Explorer");
-//    resize(800, 500);
+//    resize(800, 1000);
 
 //    uart = new DonglePort(this);
 //    uart->autoConnectTo("ONB");
@@ -281,6 +281,14 @@ MainWindow::MainWindow(QWidget *parent) :
 //    QPushButton *b = new QPushButton("upgrade");
 //    connect(b, SIGNAL(clicked(bool)), SLOT(upgrade()));
 //    ui->mainToolBar->addWidget(b);
+
+    QSize ssz = screen()->availableSize();
+    if (ssz.width() < ssz.height())
+    {
+        resize(800, 1000);
+        changeLayout(Qt::Vertical);
+        setWindowState(Qt::WindowMaximized);
+    }
 }
 
 MainWindow::~MainWindow()
@@ -291,26 +299,9 @@ MainWindow::~MainWindow()
 void MainWindow::resizeEvent(QResizeEvent *e)
 {
     if (e->size().width() > e->size().height())
-    {
-        // horizontal layout
-        mainLayout->addWidget(mTree, 0, 0);
-        mainLayout->addWidget(mInfoBox, 1, 0);
-        mainLayout->addWidget(mLogBox, 2, 0, 1, 2);
-        mainLayout->addWidget(mGraphBox, 0, 1, 2, 1);
-        mainLayout->addWidget(mObjTable, 0, 2, 3, 1);
-    }
+        changeLayout(Qt::Horizontal);
     else
-    {
-        // vertical layout
-        mainLayout->addWidget(mTree, 0, 0);
-        mainLayout->addWidget(mInfoBox, 1, 0);
-        mainLayout->addWidget(mObjTable, 0, 1, 2, 1);
-        mainLayout->addWidget(mGraphBox, 2, 0, 1, 2);
-        mainLayout->addWidget(mLogBox, 3, 0, 1, 2);
-        mainLayout->setRowStretch(0, 1);
-        mainLayout->setRowStretch(2, 1);
-        mainLayout->setRowStretch(3, 0);
-    }
+        changeLayout(Qt::Vertical);
 }
 //---------------------------------------------------------------------------
 
@@ -522,6 +513,30 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
                     device->requestObjectInfo(i);
                 }
         }
+    }
+}
+
+void MainWindow::changeLayout(Qt::Orientation orient)
+{
+    if (orient == Qt::Horizontal)
+    {
+        mainLayout->addWidget(mTree, 0, 0);
+        mainLayout->addWidget(mInfoBox, 1, 0);
+        mainLayout->addWidget(mLogBox, 2, 0, 1, 2);
+        mainLayout->addWidget(mGraphBox, 0, 1, 2, 1);
+        mainLayout->addWidget(mObjTable, 0, 2, 3, 1);
+    }
+    else
+    {
+        // vertical layout
+        mainLayout->addWidget(mTree, 0, 0);
+        mainLayout->addWidget(mInfoBox, 1, 0);
+        mainLayout->addWidget(mObjTable, 0, 1, 2, 1);
+        mainLayout->addWidget(mGraphBox, 2, 0, 1, 2);
+        mainLayout->addWidget(mLogBox, 3, 0, 1, 2);
+        mainLayout->setRowStretch(0, 1);
+        mainLayout->setRowStretch(2, 1);
+        mainLayout->setRowStretch(3, 0);
     }
 }
 
