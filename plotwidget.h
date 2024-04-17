@@ -30,9 +30,12 @@ private:
     QColor nextColor();
 
     QMap<QString, float> m_zoomY;
+    QMap<QString, float> m_history;
 
     int mTimestamp0;
     float mTime;
+
+    bool m_acceptPoints = true;
 
     void addPoint(QString name, float val);
     void addPoint(QString name, float time, float val);

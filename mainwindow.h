@@ -25,6 +25,9 @@
 #include "objtable.h"
 #include "plotwidget.h"
 #include "upgradewidget.h"
+#include "objlogger.h"
+
+#include "analyzerwidget.h"
 
 namespace Ui {
 class MainWindow;
@@ -54,7 +57,7 @@ private:
     QMap<unsigned short, QTreeWidgetItem*> mItems;
     QGroupBox *mInfoBox;
     QMap<QString, QLineEdit*> mEdits;
-    ObjTable *mObjTable;
+    QStackedWidget *mNodeWidget;
 
     QGroupBox *mGraphBox;
     QGroupBox *mLogBox;
@@ -112,9 +115,6 @@ private slots:
 
     void logMessage(QString message);
     void logMessage(QString netname, const CommonMessage &msg);
-
-    void onBoardConnect();
-    void onBoardDisconnect();
 
     void resetStat();
 

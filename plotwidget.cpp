@@ -8,7 +8,8 @@ PlotWidget::PlotWidget(QWidget *parent) :
 {
     setAcceptDrops(true);
 
-    mColors << Qt::red << Qt::blue << Qt::black << QColor("green") << QColor(0, 192, 0) << QColor(0, 224, 224) << Qt::magenta << QColor(192, 192, 0) << Qt::darkGray;
+    mColors << Qt::red << Qt::blue << Qt::black << Qt::darkGreen
+            << Qt::darkMagenta << Qt::darkYellow << Qt::darkCyan << Qt::darkGray;
 
     mGraph = new GraphWidget();
     mGraph->setMinimumSize(400, 200);
@@ -33,6 +34,7 @@ PlotWidget::PlotWidget(QWidget *parent) :
     pauseBtn->setFixedWidth(24);
     connect(pauseBtn, &QPushButton::clicked, [=](bool checked)
     {
+        m_acceptPoints = !checked;
         if (checked)
         {
             drawTimer->stop();
@@ -50,7 +52,7 @@ PlotWidget::PlotWidget(QWidget *parent) :
     QDoubleSpinBox *pointLimitSpin = new QDoubleSpinBox();
     pointLimitSpin->setFixedWidth(60);
     pointLimitSpin->setRange(0, 60);
-    pointLimitSpin->setSingleStep(0.1);
+    pointLimitSpin->setSingleStep(0.01);
     connect(pointLimitSpin, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), [=](double val)
     {
         mGraph->setXwindow(val);
@@ -432,10 +434,17 @@ void PlotWidget::addPoint(QString name, float val)
 
 void PlotWidget::addPoint(QString name, float time, float val)
 {
+    if (!m_acceptPoints)
+        return;
+
     float zoomY = 1;
     if (m_zoomY.contains(name))
         zoomY = m_zoomY[name];
+
+    if (m_history.contains(name))
+        mGraph->addPoint(name, time, m_history[name]*zoomY);
     mGraph->addPoint(name, time, val*zoomY);
+    m_history[name] = val;
 
     if (name == mTriggerSource->currentText())
     {

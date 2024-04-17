@@ -20,13 +20,15 @@ MainWindow::MainWindow(QWidget *parent) :
 //    uart->setBaudRate(1000000);
 
 #if defined(ONB_SERIAL)
-    uartWidget = new SerialPortWidget();
+    uartWidget = new SerialPortWidget(new QSerialPort());
     uartWidget->autoConnect("ONB");
     uartWidget->disableAutoRead();
     uartWidget->setBaudrate(1000000);
     ui->mainToolBar->addWidget(uartWidget);
 
-    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device());
+    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device(), true); // true = SWONB mode
+//    SerialOnbInterface *serialOnb = new SerialOnbInterface(true); // true = SWONB mode
+//    connect(uartWidget, &SerialPortWidget::portChanged, serialOnb, &SerialOnbInterface::setPort);
     connect(serialOnb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
     serialMaster = new ObjnetMaster(serialOnb);
     masters << serialMaster;
@@ -48,15 +50,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(mOviServerBtn, SIGNAL(clicked(bool)), onbvs, SLOT(setEnabled(bool)));
     ui->mainToolBar->addWidget(mOviServerBtn);
 #endif
-
-//    can = new SerialCan(uart, SerialCan::protoCommon);
-//    //can->setBaudrate(1000000);
-//    //can->setFixedWidth(260);
-//    connect(can, SIGNAL(onMessage(ulong,QByteArray&)), this, SLOT(onMessage(ulong,QByteArray&)));
-//    connect(can, SIGNAL(onMessageSent(ulong,QByteArray&)), this, SLOT(onMessageSent(ulong,QByteArray&)));
-//    connect(can, SIGNAL(connected()), this, SLOT(onBoardConnect()));
-//    connect(can, SIGNAL(disconnected()), this, SLOT(onBoardDisconnect()));
-//    //ui->mainToolBar->addWidget(can);
 
 #if defined(ONB_USBHID)
     UsbHidOnbInterface *usbonb = new UsbHidOnbInterface(new UsbOnbThread(this));
@@ -90,6 +83,12 @@ MainWindow::MainWindow(QWidget *parent) :
     btnResetStat->setFixedWidth(80);
     connect(btnResetStat, SIGNAL(clicked()), this, SLOT(resetStat()));
     ui->mainToolBar->addWidget(btnResetStat);
+
+    ObjLogger *paramLogWidget = new ObjLogger(this);
+
+    QPushButton *btnParamLog = new QPushButton("Log params");
+    ui->mainToolBar->addWidget(btnParamLog);
+    connect(btnParamLog, &QPushButton::clicked, paramLogWidget, &QWidget::show);
 
     editLog = new QTextEdit();
     editLog->setMinimumWidth(200);
@@ -177,8 +176,6 @@ MainWindow::MainWindow(QWidget *parent) :
     }
     mInfoBox->setLayout(gblay);
 
-    mObjTable = new ObjTable();
-
     QStringList strings;
     strings << "<Interface>" << "0" << "0" << "FFFFFFFF";
     QTreeWidgetItem *item;
@@ -226,6 +223,7 @@ MainWindow::MainWindow(QWidget *parent) :
     graphLay->addWidget(mGraph);
     mGraphBox->setLayout(graphLay);
 
+    mNodeWidget = new QStackedWidget;
 
     mainLayout = new QGridLayout;
     mainLayout->setColumnStretch(1, 1);
@@ -233,7 +231,7 @@ MainWindow::MainWindow(QWidget *parent) :
     mainLayout->addWidget(mInfoBox, 1, 0);
     mainLayout->addWidget(mLogBox, 2, 0, 1, 2);
     mainLayout->addWidget(mGraphBox, 0, 1, 2, 1);
-    mainLayout->addWidget(mObjTable, 0, 2, 3, 1);
+    mainLayout->addWidget(mNodeWidget, 0, 2, 3, 1);
     ui->centralWidget->setLayout(mainLayout);
 
     QTimer *timer = new QTimer(this);
@@ -502,7 +500,8 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
     {
         if (device->isReady())
         {
-            mObjTable->setDevice(device);
+            int idx = item->data(0, Qt::UserRole + 23).toInt();
+            mNodeWidget->setCurrentIndex(idx);
         }
         else
         {
@@ -524,118 +523,20 @@ void MainWindow::changeLayout(Qt::Orientation orient)
         mainLayout->addWidget(mInfoBox, 1, 0);
         mainLayout->addWidget(mLogBox, 2, 0, 1, 2);
         mainLayout->addWidget(mGraphBox, 0, 1, 2, 1);
-        mainLayout->addWidget(mObjTable, 0, 2, 3, 1);
+        mainLayout->addWidget(mNodeWidget, 0, 2, 3, 1);
     }
     else
     {
         // vertical layout
         mainLayout->addWidget(mTree, 0, 0);
         mainLayout->addWidget(mInfoBox, 1, 0);
-        mainLayout->addWidget(mObjTable, 0, 1, 2, 1);
+        mainLayout->addWidget(mNodeWidget, 0, 1, 2, 1);
         mainLayout->addWidget(mGraphBox, 2, 0, 1, 2);
         mainLayout->addWidget(mLogBox, 3, 0, 1, 2);
         mainLayout->setRowStretch(0, 1);
         mainLayout->setRowStretch(2, 1);
         mainLayout->setRowStretch(3, 0);
     }
-}
-
-//void MainWindow::onCellChanged(int row, int col)
-//{
-//    if (col != 1)
-//        return;
-//    if (device)
-//    {
-//        ObjectInfo *info = device->objectInfo(row);
-//        QVariant val = mObjTable->item(row, col)->text();
-//        if (info->rType() == ObjectInfo::Common)
-//            val = QByteArray::fromHex(val.toByteArray());
-//        else
-//            val.convert(info->rType());
-//        info->fromVariant(val);
-//        if (info->flags() & ObjectInfo::Function)
-//            return;
-//        device->sendObject(info->name());
-//    }
-//}
-
-//void MainWindow::onCellDblClick(int row, int col)
-//{
-//    Q_UNUSED(col);
-//    QTableWidgetItem *item = mObjTable->item(row, 0);
-//    if (mLogs.contains(item->text()))
-//    {
-//        mLogs[item->text()]->parentWidget()->show();
-//        return;
-//    }
-////    if (item->data(Qt::UserRole+3).isValid())
-////        return;
-
-//    QWidget *dlg = new QWidget(this, Qt::Tool);
-//    dlg->setWindowTitle(item->text());
-//    QTextEdit *log = new QTextEdit(dlg);
-//    QVBoxLayout *lay = new QVBoxLayout();
-//    lay->addWidget(log);
-//    dlg->setLayout(lay);
-//    dlg->show();
-//    //item->setData(Qt::UserRole + 3, QVariant().fromValue<QTextEdit*>(log));
-//    mLogs[item->text()] = log;
-//}
-
-//void MainWindow::onObjectReceive(QString name, QVariant value)
-//{
-//    ObjnetDevice *dev = dynamic_cast<ObjnetDevice*>(sender());
-
-//    if (name == "App::incrementTest")
-//    {
-//        static float oldt = -1;
-//        static float tf = 0;
-//        float t1 = mEtimer.nsecsElapsed() * 1e-6;
-//        float dt = t1 - oldt;
-//        if (dt > 1000)
-//            dt = 5;
-//        if (oldt < 0)
-//        {
-//            tf = dt;
-//        }
-//        else
-//        {
-//            tf = 0.999*tf + 0.001*dt;
-//            static int oval = 0;
-//            static int errs = 0;
-//            QString str = value.toString();
-//            int idx = str.indexOf(' ');
-//            int val = str.left(idx).toInt();
-//            if (oval != val)
-//            {
-//                errs++;
-//                oval = val;
-//            }
-//            oval++;
-//            status3->setText(QString().sprintf("dt= %.2f ms, errs=%d", tf, errs));
-//        }
-//        oldt = t1;
-//    }
-
-//}
-//---------------------------------------------------------------------------
-
-void MainWindow::onBoardConnect()
-{
-    status->setText("Connected");
-    QStringList strings;
-    strings << "<root>" << "0" << "0" << "FFFFFFFF";
-    QTreeWidgetItem *item = new QTreeWidgetItem(strings);
-    mTree->addTopLevelItem(item);
-    item->setExpanded(true);
-}
-
-void MainWindow::onBoardDisconnect()
-{
-    status->setText("Disconnected");
-//    master->reset();
-    mTree->clear();
-    mItems.clear();
 }
 //---------------------------------------------------------------------------
 
@@ -755,9 +656,7 @@ void MainWindow::onDevAdded(unsigned char netAddress, const QByteArray &locData)
                 qDebug() << "netAddress" << netAddress << "does not exist";
                 return;
             }
-//            connect(dev, SIGNAL(objectReceived(QString,QVariant)), SLOT(onObjectReceive(QString,QVariant)));
-            connect(dev, SIGNAL(objectReceived(QString,QVariant)), mObjTable, SLOT(updateObject(QString,QVariant)));
-            connect(dev, SIGNAL(timedObjectReceived(QString,uint32_t,QVariant)), mObjTable, SLOT(updateTimedObject(QString,uint32_t,QVariant)));
+
             connect(dev, SIGNAL(objectReceived(QString,QVariant)), mGraph, SLOT(updateObject(QString,QVariant)));
             connect(dev, SIGNAL(objectGroupReceived(QVariantMap)), mGraph, SLOT(updateObjectGroup(QVariantMap)));
             connect(dev, SIGNAL(timedObjectReceived(QString,uint32_t,QVariant)), mGraph, SLOT(updateTimedObject(QString,uint32_t,QVariant)));
@@ -798,12 +697,34 @@ void MainWindow::onDevConnected(unsigned char netAddress)
     if (item)
     {
         item->setDisabled(false);
-        const ObjnetDevice *dev2 = master->devices().at(netAddress);
-        if (!dev2->isValid())
+        ObjnetDevice *dev = master->devices().at(netAddress);
+        if (!dev->isValid())
         {
             master->requestClassId(netAddress);
             master->requestName(netAddress);
             master->requestSerial(netAddress);
+        }
+
+        if (!item->data(0, Qt::UserRole + 23).isValid())
+        {
+            QWidget *nodeWidget = nullptr;
+            //! @todo automatic plugin loading
+            if (dev->classId() == 0x01000024) // Analyzer
+            {
+                nodeWidget = new AnalyzerWidget(dev);
+            }
+            else
+            {
+                nodeWidget = new ObjTable(dev);
+            }
+
+            int idx = mNodeWidget->addWidget(nodeWidget);
+            item->setData(0, Qt::UserRole + 23, idx);
+        }
+        else
+        {
+            int idx = item->data(0, Qt::UserRole + 23).toInt();
+            mNodeWidget->widget(idx)->setEnabled(true);
         }
     }
 }
@@ -820,6 +741,8 @@ void MainWindow::onDevDisconnected(unsigned char netAddress)
     if (item)
     {
         item->setDisabled(true);
+        int idx = item->data(0, Qt::UserRole + 23).toInt();
+        mNodeWidget->widget(idx)->setDisabled(true);
     }
 }
 

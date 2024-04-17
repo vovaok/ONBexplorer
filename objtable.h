@@ -37,9 +37,9 @@ private slots:
     void updateTable();
 
 public:
-    ObjTable(QWidget *parent = nullptr);
+    ObjTable(ObjnetDevice *dev, QWidget *parent = nullptr);
 
-    void setDevice(ObjnetDevice *dev);
+//    void setDevice(ObjnetDevice *dev);
 
 public slots:
     void updateObject(QString name, QVariant value);

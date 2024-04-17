@@ -1,9 +1,9 @@
 #include "objtable.h"
 #undef ByteArray
 
-ObjTable::ObjTable(QWidget *parent) :
+ObjTable::ObjTable(ObjnetDevice *dev, QWidget *parent) :
     QTreeView(parent),
-    m_device(nullptr),
+    m_device(dev),
     m_flag(false)
 {
     setMinimumWidth(412);
@@ -15,14 +15,21 @@ ObjTable::ObjTable(QWidget *parent) :
     setEditTriggers(QTreeView::DoubleClicked | QTreeView::AnyKeyPressed);
 
     connect(this, &ObjTable::clicked, this, &ObjTable::onClick);
+
+    connect(dev, &ObjnetDevice::ready, this, &ObjTable::updateTable);
+    connect(dev, &ObjnetDevice::objectReceived, this, &ObjTable::updateObject);
+    connect(dev, &ObjnetDevice::timedObjectReceived, this, &ObjTable::updateTimedObject);
+
+    if (m_device->isReady())
+        updateTable();
 }
 
-void ObjTable::setDevice(ObjnetDevice *dev)
-{
-    m_device = dev;
+//void ObjTable::setDevice(ObjnetDevice *dev)
+//{
+//    m_device = dev;
 
-    updateTable();
-}
+//    updateTable();
+//}
 
 void ObjTable::updateTable()
 {
@@ -303,6 +310,10 @@ QString ObjTable::valueToString(QVariant value)
         {
             QQuaternion q = value.value<QQuaternion>();
             val = QString().sprintf("(w=%.3f, x=%.3f, y=%.3f, z=%.3f)", q.scalar(), q.x(), q.y(), q.z());
+        }
+        else if (mt == QMetaType::QStringList)
+        {
+            val = QString("[%1]").arg(value.toStringList().join(", "));
         }
         else if (mt == QMetaType::QVariantList)
         {
