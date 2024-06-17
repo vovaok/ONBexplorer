@@ -86,6 +86,8 @@ private:
 
     QElapsedTimer mEtimer;
 
+    QTimer *m_connTimer;
+
 #if defined(ONB_VIRTUAL)
     ObjnetVirtualServer *onbvs;
     ObjnetVirtualInterface *onbvi;

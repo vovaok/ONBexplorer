@@ -245,6 +245,22 @@ MainWindow::MainWindow(QWidget *parent) :
     onbvs->setEnabled(true);
 #endif
 
+    QSpinBox *aidSpin = new QSpinBox;
+    aidSpin->setRange(0, 64);
+    QPushButton *sendGlobalBtn = new QPushButton(">>");
+    ui->mainToolBar->addSeparator();
+    ui->mainToolBar->addWidget(new QLabel("Send global msg: AID="));
+    ui->mainToolBar->addWidget(aidSpin);
+    ui->mainToolBar->addWidget(sendGlobalBtn);
+    ui->mainToolBar->addSeparator();
+    connect(sendGlobalBtn, &QPushButton::clicked, [=]()
+    {
+        for (ObjnetMaster *master: masters)
+        {
+            master->sendGlobalMessage(aidSpin->value());
+        }
+    });
+
     QLineEdit *cedit = new QLineEdit();
     QPushButton *ubtn = new QPushButton("Upgrade");
     connect(ubtn, &QPushButton::clicked, [=](bool)
@@ -270,9 +286,10 @@ MainWindow::MainWindow(QWidget *parent) :
     });
     ui->mainToolBar->addWidget(fwFolderBtn);
 
-    QTimer *conntimer = new QTimer(this);
-    connect(conntimer, &QTimer::timeout, this, &MainWindow::onConnTimer);
-    conntimer->start(250);
+    m_connTimer = new QTimer(this);
+    m_connTimer->setSingleShot(true);
+    m_connTimer->setInterval(250);
+    connect(m_connTimer, &QTimer::timeout, this, &MainWindow::onConnTimer);
 
 //    mLogEnableBtn->setChecked(true);
 
@@ -473,19 +490,6 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         mEdits["Burn count"]->setText(QString().sprintf("%d", dev->burnCount()));
         mEdits["Bus type"]->setText(dev->busTypeName());
         mEdits["Bus address"]->setText(QString::number(dev->busAddress()));
-
-        if (dev->busType() != BusSwonb && dev->busType() != BusRadio)
-        for (int i=0; i<dev->objectCount(); i++)
-        {
-            ObjectInfo *info = dev->objectInfo(i);
-            if (!info)
-                continue;
-            if (info->isVolatile() && !info->isBuffer())
-            {
-//                qDebug() << "autoRequest" << info->name();
-                dev->autoRequest(info->name(), -1); // request autoRequest
-            }
-        }
     }
     else
     {
@@ -505,12 +509,15 @@ void MainWindow::onItemClick(QTreeWidgetItem *item, int column)
         }
         else
         {
-            for (int i=0; i<device->objectCount(); i++)
-                if (!device->objectInfo(i))
-                {
-                    qDebug() << "request object info" << i;
-                    device->requestObjectInfo(i);
-                }
+            m_connTimer->start(); // try again after a while...
+
+            // MUST be requested ONLY if requestAllInfo fails!
+//            for (int i=0; i<device->objectCount(); i++)
+//                if (!device->objectInfo(i))
+//                {
+//                    qDebug() << "request object info" << i;
+//                    device->requestObjectInfo(i);
+//                }
         }
     }
 }
@@ -598,12 +605,16 @@ void MainWindow::onConnTimer()
     if (device)
     {
         if (!device->isInfoValid())
+        {
             device->requestMetaInfo();
+            m_connTimer->start();
+        }
         else if (!device->isReady())
         {
             for (int i=0; i<device->objectCount(); i++)
                 if (!device->objectInfo(i) || !device->objectInfo(i)->isValid())
                     device->requestObjectInfo(i);
+            m_connTimer->start();
         }
     }
 }

@@ -41,6 +41,7 @@ SOURCES += main.cpp\
     ../components5/commlib/serialportwidget.cpp \
     ../components5/megaWidgets/graphwidget.cpp \
     ../components5/onb/serialonbinterface.cpp \
+    ../components5/onb/udponbinterface.cpp \
     analyzerwidget.cpp \
     mainwindow.cpp \
     objlogger.cpp \

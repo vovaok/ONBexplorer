@@ -54,7 +54,11 @@ void ObjTable::updateTable()
             {
                 root->appendRow(createRow(info));
                 if (info->isWritable() && !info->isInvokable()) // read-write naoborot
+                {
+                    if (info->isVolatile() && !info->isBuffer())
+                        m_device->autoRequest(info->name(), -1); // request autoRequest
                     m_device->requestObject(info->name());
+                }
             }
             else
                 root->appendRow(new QStandardItem("ERROR"));
