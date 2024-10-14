@@ -91,7 +91,7 @@ private:
 #if defined(ONB_VIRTUAL)
     ObjnetVirtualServer *onbvs;
     ObjnetVirtualInterface *onbvi;
-    QPushButton *mOviServerBtn,
+    QPushButton *mOviServerBtn;
 #endif
 
     QMap<QString, QTextEdit*> mLogs;

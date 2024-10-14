@@ -20,6 +20,7 @@ AnalyzerWidget::AnalyzerWidget(ObjnetDevice *dev, QWidget *parent)
     m_phaseGraph->setMaxPointCount(100000);
     m_phaseGraph->setAutoBoundsEnabled(true);
     m_phaseGraph->addGraph("phase", Qt::blue, 2.0f);
+    m_phaseGraph->addGraph("unfiltered", QColor(0, 0, 255, 64), 1.0f);
 //    m_phaseGraph->setGraphType("phase", Graph::Points);
 //    m_phaseGraph->setPointSize("phase", 3.0);
 
@@ -103,7 +104,7 @@ AnalyzerWidget::AnalyzerWidget(ObjnetDevice *dev, QWidget *parent)
 
     connect(m_requestTimer, &QTimer::timeout, [=]()
     {
-        m_device->groupedRequest({"freq", "magnitude", "phase"});
+        m_device->groupedRequest({"freq", "magnitude", "phase", "rms"});
     });
 
     connect(m_btnStartStop, &QPushButton::clicked, [=]()
@@ -286,9 +287,12 @@ void AnalyzerWidget::onSampleReceived(QVariantMap values)
         float m = values["magnitude"].toFloat();
         float ph = values["phase"].toFloat() * 180 / M_PI;
 
+        float rms = values["rms"].toFloat();
+
         f = log10f(f);
 
         m_graph->addPoint("unfiltered", f, m);
+        m_phaseGraph->addPoint("unfiltered", f, rms*180/M_PI);
         m_phaseGraph->addPoint("phase", f, ph);
 
         m_filter << QPointF(f, m);

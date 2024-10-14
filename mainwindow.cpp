@@ -26,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent) :
     uartWidget->setBaudrate(1000000);
     ui->mainToolBar->addWidget(uartWidget);
 
-    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device(), true); // true = SWONB mode
+    SerialOnbInterface *serialOnb = new SerialOnbInterface(uartWidget->device(), false); // true = SWONB mode
 //    SerialOnbInterface *serialOnb = new SerialOnbInterface(true); // true = SWONB mode
 //    connect(uartWidget, &SerialPortWidget::portChanged, serialOnb, &SerialOnbInterface::setPort);
     connect(serialOnb, SIGNAL(message(QString,const CommonMessage&)), SLOT(logMessage(QString,const CommonMessage&)));
