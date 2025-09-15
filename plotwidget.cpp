@@ -226,12 +226,7 @@ void PlotWidget::dropEvent(QDropEvent *event)
             addObjname(ser, objname, 0);// obj->isArray()? obj->wCount(): 0);
         }
 
-        QTimer *tim = new QTimer(this);
-        connect(tim, &QTimer::timeout, [=]()
-        {
-            dev->groupedRequest(names.toVector().toStdVector());
-        });
-        tim->start(30);
+        dev->autoGroupRequest(1, names.toVector().toStdVector());
 
         event->acceptProposedAction();
         return;
