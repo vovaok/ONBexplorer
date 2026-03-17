@@ -67,6 +67,7 @@ public slots:
     void updateObjectGroup(QVariantMap values);
     void updateTimedObject(QString name, uint32_t timestamp, QVariant value);
     void onAutoRequestAccepted(QString objname, int periodMs);
+    void getSnapshot();
 };
 
 #endif // PLOTWIDGET_H
