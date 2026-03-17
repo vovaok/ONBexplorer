@@ -57,6 +57,8 @@ private:
   std::vector<QVariantMap> samples_;
   std::mutex analMutex_;
 
+  bool _the_endec = false;
+
 public:
   Server(std::unique_ptr<ILogger>&& logger, uint16_t port=4242);
   virtual ~Server() = default;

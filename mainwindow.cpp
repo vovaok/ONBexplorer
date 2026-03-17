@@ -313,6 +313,11 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::closeEvent(QCloseEvent *e)
+{
+    server.stop();
+}
+
 void MainWindow::resizeEvent(QResizeEvent *e)
 {
     if (e->size().width() > e->size().height())

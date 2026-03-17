@@ -20,11 +20,13 @@ Server::Server(std::unique_ptr<ILogger>&& logger, uint16_t port):
 
 void Server::start()
 {
+  _the_endec = false;
   thread_ = ThreadPtr{ new std::thread(&Server::task, this) };
 }
 
 void Server::stop()
 {
+  _the_endec = true;
   /// @todo proper thread cancel
   pthread_cancel(thread_->native_handle());
   thread_ = nullptr;
@@ -117,9 +119,13 @@ void Server::task()
   server_.setMaxPendingConnections(1);
   server_.listen(QHostAddress::Any, port_);
 
-  while(1)
+  while(!_the_endec)
   {
-    server_.waitForNewConnection(-1);
+    bool timedOut;
+    server_.waitForNewConnection(1000, &timedOut);
+    if (timedOut)
+        continue;
+
     QTcpSocket* psock = server_.nextPendingConnection();
     
     logger_->log("Client connected");
@@ -128,7 +134,7 @@ void Server::task()
 
     logger_->log("Starting handler loop");
 
-    while(psock->isOpen())
+    while(psock->isOpen() && !_the_endec)
     {
       if(peekAll(psock, buf.data(), 2) < 0) break;
       uint16_t in_sz = *reinterpret_cast<uint16_t*>(buf.data());
