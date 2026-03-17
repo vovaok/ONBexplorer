@@ -54,7 +54,11 @@ AnalyzerWidget::AnalyzerWidget(ObjnetDevice *dev, QWidget *parent)
 
     m_ampSpin = new QDoubleSpinBox();
     m_ampSpin->setRange(0, 1000);
-    m_ampSpin->setDecimals(1);
+    m_ampSpin->setDecimals(2);
+
+    m_biasSpin = new QDoubleSpinBox();
+    m_biasSpin->setRange(0, 1000);
+    m_biasSpin->setDecimals(2);
 
     m_durSpin = new QDoubleSpinBox();
     m_durSpin->setRange(0.001, 1000);
@@ -91,8 +95,10 @@ AnalyzerWidget::AnalyzerWidget(ObjnetDevice *dev, QWidget *parent)
     btnlay->addWidget(m_ampSpin, 1, 1);
     btnlay->addWidget(new QLabel("Duration:"), 1, 2);
     btnlay->addWidget(m_durSpin, 1, 3);
-    btnlay->addWidget(new QLabel("Magnitude filter:"), 2, 0);
-    btnlay->addWidget(m_filterSpin, 2, 1);
+    btnlay->addWidget(new QLabel("Test bias:"), 2, 0);
+    btnlay->addWidget(m_biasSpin, 2, 1);
+    btnlay->addWidget(new QLabel("Magnitude filter:"), 2, 2);
+    btnlay->addWidget(m_filterSpin, 2, 3);
 
     btnlay->addWidget(btnClear, 3, 0);
     btnlay->addWidget(new QLabel("Input signal:"), 3, 1);
@@ -129,6 +135,11 @@ AnalyzerWidget::AnalyzerWidget(ObjnetDevice *dev, QWidget *parent)
     connect(m_ampSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [=](double value)
     {
         m_device->sendObject("targetAmplitude", value);
+    });
+
+    connect(m_biasSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [=](double value)
+    {
+        m_device->sendObject("targetBias", value);
     });
 
     connect(m_durSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [=](double value)
@@ -265,6 +276,7 @@ void AnalyzerWidget::onDeviceReady()
     m_device->bindVariable("freqStart", m_freqStart);
     m_device->bindVariable("freqEnd", m_freqEnd);
     m_device->bindVariable("targetAmplitude", m_amp);
+    m_device->bindVariable("targetBias", m_bias);
     m_device->bindVariable("duration", m_dur);
     m_device->bindVariable("active", m_active);
 //    m_device->bindVariable("inputs", m_inputNames);
@@ -273,6 +285,7 @@ void AnalyzerWidget::onDeviceReady()
     m_device->requestObject("freqStart");
     m_device->requestObject("freqEnd");
     m_device->requestObject("targetAmplitude");
+    m_device->requestObject("targetBias");
     m_device->requestObject("duration");
 
     m_device->requestObject("inputs");
@@ -342,6 +355,10 @@ void AnalyzerWidget::onObjectChanged(QString name, QVariant value)
     else if (name == "targetAmplitude")
     {
         m_ampSpin->setValue(value.toFloat());
+    }
+    else if (name == "targetBias")
+    {
+        m_biasSpin->setValue(value.toFloat());
     }
     else if (name == "duration")
     {
