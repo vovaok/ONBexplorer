@@ -25,6 +25,8 @@ DEFINES += ONB_UDP
 DEFINES += ONB_VIRTUAL
 
 COMPONENTS = $$PWD/../components5
+message($$COMPONENTS)
+
 include($$COMPONENTS/onb/onb.pri)
 include($$COMPONENTS/commlib/commlib.pri)
 #include($$COMPONENTS/panel3d/panel3d.pri)
@@ -47,7 +49,9 @@ SOURCES += main.cpp\
     objlogger.cpp \
     upgradewidget.cpp \
     plotwidget.cpp \
-    objtable.cpp
+    objtable.cpp \
+    api/apicommon.cpp \
+    api/apiserver.cpp \
 
 HEADERS  += mainwindow.h \
     ../components5/commlib/serialframe.h \
@@ -57,7 +61,9 @@ HEADERS  += mainwindow.h \
     objlogger.h \
     plotwidget.h \
     upgradewidget.h \
-    objtable.h
+    objtable.h \
+    api/apicommon.h \
+    api/apiserver.h
 
 FORMS    += mainwindow.ui
 
