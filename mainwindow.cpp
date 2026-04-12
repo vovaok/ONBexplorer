@@ -8,10 +8,12 @@ MainWindow::MainWindow(QWidget *parent) :
     sent(0),
     received(0),
     device(0L),
-    lastDeviceId(0)
+    lastDeviceId(0),
+    server(std::make_unique<APILogger>(this))
 {
     ui->setupUi(this);
     setWindowTitle("ONB Explorer");
+    server.start();
 //    resize(800, 1000);
 
 //    uart = new DonglePort(this);
@@ -309,6 +311,11 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::closeEvent(QCloseEvent *e)
+{
+    server.stop();
 }
 
 void MainWindow::resizeEvent(QResizeEvent *e)
@@ -729,6 +736,8 @@ void MainWindow::onDevConnected(unsigned char netAddress)
                 nodeWidget = new ObjTable(dev);
             }
 
+            server.addDevice(dev);
+            
             int idx = mNodeWidget->addWidget(nodeWidget);
             item->setData(0, Qt::UserRole + 23, idx);
         }

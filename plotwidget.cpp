@@ -96,6 +96,9 @@ PlotWidget::PlotWidget(QWidget *parent) :
     });
     trigButtons[TriggerOff]->setChecked(true);
 
+    QPushButton *copyBtn = new QPushButton("Copy to clipboard");
+    connect(copyBtn, &QPushButton::clicked, this, &PlotWidget::getSnapshot);
+
     QGridLayout *lay = new QGridLayout;
     setLayout(lay);
     lay->setContentsMargins(0, 0, 0, 0);
@@ -104,6 +107,7 @@ PlotWidget::PlotWidget(QWidget *parent) :
     lay->addWidget(mGraph, 0, 1, 3, 1);
     QVBoxLayout *vlay = new QVBoxLayout;
     lay->addLayout(vlay, 2, 0);
+    vlay->addWidget(copyBtn);
     QHBoxLayout *hlay = new QHBoxLayout;
     hlay->addWidget(new QLabel("Time window, s:"));
     hlay->addWidget(pointLimitSpin);
@@ -613,4 +617,10 @@ void PlotWidget::onAutoRequestAccepted(QString objname, int periodMs)
             }
         }
     }
+}
+
+void PlotWidget::getSnapshot()
+{
+    QImage image = mGraph->grabFramebuffer();
+    QApplication::clipboard()->setImage(image);
 }

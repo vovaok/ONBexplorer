@@ -29,6 +29,9 @@
 
 #include "analyzerwidget.h"
 
+#include "api/apiserver.h"
+#include <iostream>
+
 namespace Ui {
 class MainWindow;
 }
@@ -44,13 +47,30 @@ public:
     ~MainWindow();
 
 protected:
+    void closeEvent(QCloseEvent *e);
     void resizeEvent(QResizeEvent *e);
 
 private:
     Ui::MainWindow *ui;
     QPushButton *btnUpgrade;
     QPushButton *mLogEnableBtn, *btnResetStat;
+    
     QTextEdit *editLog;
+
+    struct APILogger final: public API::Server::ILogger
+    {
+    private:
+      MainWindow* window_;
+
+    public:
+      APILogger(MainWindow* window): window_{window} {}
+
+      void log (const std::string& msg) override
+      {
+        std::cout << "[API] " << msg << std::endl;
+      }
+    };
+
     QCheckBox *chkSvcOnly, *chkSuppressPolling;
     QLabel *status, *status2, *status3;
     QTreeWidget *mTree;
@@ -97,6 +117,8 @@ private:
     QMap<QString, QTextEdit*> mLogs;
 
     unsigned long lastDeviceId;
+
+    API::Server server;
 
     void logMessage(ulong id, QByteArray &data, bool dir=0);
     QString ba2str(const QByteArray &ba);
