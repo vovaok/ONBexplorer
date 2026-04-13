@@ -16,13 +16,17 @@ private:
   struct Impl;
   std::unique_ptr<Impl> pimpl_;
 
-  std::array<char, 1024> buf_;
+  std::vector<char> buf_;
 
 private:
   void     setPacketSize(uint16_t sz);
   uint16_t getPacketSize();
   uint16_t readPacket();
 
+  // Seems like regular assert message
+  // is not forwarded to python
+  // This thing just throws an exception
+  void pyassert(bool cond, const char* msg, const char* file, size_t line);
 public:
   Client(const std::string& addr = "127.0.0.1", size_t port=4242);
   
