@@ -445,6 +445,15 @@ void PlotWidget::addPoint(QString name, float time, float val)
     mGraph->addPoint(name, time, val*zoomY);
     m_history[name] = val;
 
+////    float win = mGraph->xWindow();
+//    m_mean += (val - m_mean) * 0.001f;
+//    float sq = (val - m_mean) * (val - m_mean);
+//    m_disp += (sq - m_disp) * 0.001f;
+//    m_rms = sqrtf(m_disp);
+//    mGraph->addPoint("mean", time, m_mean);
+//    mGraph->addPoint("rms+", time, m_mean + m_rms);
+//    mGraph->addPoint("rms-", time, m_mean - m_rms);
+
     if (name == mTriggerSource->currentText())
     {
         float level = mTriggerLevel->text().toDouble();
