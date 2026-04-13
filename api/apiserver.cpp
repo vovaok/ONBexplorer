@@ -473,7 +473,9 @@ void Server::task()
       uint16_t msgSz = *reinterpret_cast<uint16_t*>(buf.data());
       logger_->log(std::string(" --> ") + buf2str(buf.data(), msgSz));
     }
+    logger_->log("Client disconnected");
   }
+  logger_->log("Server stopped");
 }
 
 }
