@@ -6,8 +6,12 @@
 #include <QTcpSocket>
 
 #include <iostream>
+#include <sstream>
+
+#define PYASSERT(expr) pyassert((expr), #expr, __FILE__, __LINE__)
 
 using namespace Objnet;
+using namespace std::string_literals;
 
 namespace API
 {
@@ -42,7 +46,7 @@ uint16_t Client::readPacket()
   return sz;
 }
 
-Client::Client(const std::string& addr, size_t port): pimpl_{new Impl()}
+Client::Client(const std::string& addr, size_t port): pimpl_{new Impl()}, buf_(SampleBufferSize, 0)
 {
   pimpl_->socket_.connectToHost(addr.c_str(), port);
   pimpl_->socket_.waitForConnected(3000);
@@ -67,7 +71,7 @@ std::string Client::getParamStr(const std::string& dev, const std::string& param
   writeAll(&pimpl_->socket_, buf_.data(), sz);
 
   sz = readPacket();
-  assert(buf_[2] == MessageT::GetParam);
+  PYASSERT(buf_[2] == MessageT::GetParam);
 
   return buf_.data() + 3;
 }
@@ -96,7 +100,7 @@ void Client::setParamStr(const std::string& dev, const std::string& param, const
   writeAll(&pimpl_->socket_, buf_.data(), sz);
 
   sz = readPacket();
-  assert(buf_[2] == MessageT::SetParam);
+  PYASSERT(buf_[2] == MessageT::SetParam);
 }
 
 std::string Client::invokeStr(const std::string& dev, const std::string& param, const std::string& valueStr)
@@ -123,7 +127,7 @@ std::string Client::invokeStr(const std::string& dev, const std::string& param, 
   writeAll(&pimpl_->socket_, buf_.data(), sz);
 
   sz = readPacket();
-  assert(buf_[2] == MessageT::Invoke);
+  PYASSERT(buf_[2] == MessageT::Invoke);
 
   return buf_.data() + 3;
 }
@@ -135,7 +139,7 @@ T Client::getParam(const std::string& dev, const std::string& param)
   
   T value;
   ObjectInfo object { "tmp", value };
-  assert(object.fromString(valueStr.c_str()));
+  PYASSERT(object.fromString(valueStr.c_str()));
 
   return value;
 }
@@ -158,8 +162,8 @@ std::vector<std::string> Client::listDevices()
   
   writeAll(&pimpl_->socket_, buf_.data(), 3);
 
-  size_t sz = readPacket();
-  assert(buf_[2] == MessageT::ListDevices);
+  readPacket();
+  PYASSERT(buf_[2] == MessageT::ListDevices);
 
   std::vector<std::string> ret;
   const char* pcurr = buf_.data() + 3;
@@ -186,7 +190,7 @@ std::vector<std::string> Client::listParams(const std::string& dev)
   writeAll(&pimpl_->socket_, buf_.data(), sz);
 
   sz = readPacket();
-  assert(buf_[2] == MessageT::ListParams);
+  PYASSERT(buf_[2] == MessageT::ListParams);
 
   std::vector<std::string> ret;
   const char* pcurr = buf_.data() + 3;
@@ -229,7 +233,7 @@ void Client::setAGRequest(const std::string& dev, uint16_t interval, const std::
   writeAll(&pimpl_->socket_, buf_.data(), sz);
 
   sz = readPacket();
-  assert(buf_[2] = SetAGRequest);
+  PYASSERT(buf_[2] = SetAGRequest);
 }
 
 auto Client::getSamples() -> Samples
@@ -239,20 +243,34 @@ auto Client::getSamples() -> Samples
   writeAll(&pimpl_->socket_, buf_.data(), 3);
 
   size_t sz = readPacket();
-  assert(buf_[2] == GetSamples);
-  assert(sz == 5);
+  PYASSERT(buf_[2] == GetSamples);
+  PYASSERT(sz == 3 + 2*sizeof(size_t));
 
-  size_t nSamples = *reinterpret_cast<uint16_t*>(buf_.data() + 3);  
+  size_t nSamples = *reinterpret_cast<size_t*>(buf_.data() + 3);
+  size_t totalSize = *reinterpret_cast<size_t*>(buf_.data() + 3 + sizeof(size_t));
+  
+  readAll(&pimpl_->socket_, buf_.data(), totalSize);
   Samples samples;
 
+  size_t k = 0;
   for (size_t i = 0; i < nSamples; ++i)
   {
-    size_t sz = readPacket();
-    assert(buf_[2] == GetSamples);
-    samples.emplace_back(buf_.data() + 3, buf_.data() + sz);
+    sz = *reinterpret_cast<uint16_t*>(&buf_[k]);
+    PYASSERT(buf_[k + 2] == GetSamples);
+    samples.emplace_back(buf_.data() + k + 3, buf_.data() + k + sz);
+    k += sz;
   }
 
   return samples;
+}
+
+void Client::pyassert(bool cond, const char* msg, const char* file, size_t line)
+{
+  if(cond) return;
+  std::stringstream ss;
+
+  ss << "Assertion failed (" << file << ", " << line << "): " << msg;
+  throw std::runtime_error(ss.str());
 }
 
 Client::~Client() = default;
