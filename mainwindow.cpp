@@ -787,7 +787,7 @@ void MainWindow::onDevRemoved(unsigned char netAddress)
 }
 //---------------------------------------------------------------------------
 
-void MainWindow::onServiceMessageAccepted(unsigned char netAddress, SvcOID oid, const QByteArray &data)
+void MainWindow::onServiceMessageAccepted(unsigned char netAddress, unsigned char oid, const QByteArray &data)
 {
     ObjnetMaster *master = qobject_cast<ObjnetMaster*>(sender());
     int rootId = getRootId(master);

@@ -149,7 +149,7 @@ private slots:
     void onDevConnected(unsigned char netAddress);
     void onDevDisconnected(unsigned char netAddress);
     void onDevRemoved(unsigned char netAddress);
-    void onServiceMessageAccepted(unsigned char netAddress, SvcOID oid, const QByteArray &data);
+    void onServiceMessageAccepted(unsigned char netAddress, unsigned char oid, const QByteArray &data);
     void onGlobalMessage(unsigned char aid);
 
     void onDevReady();
