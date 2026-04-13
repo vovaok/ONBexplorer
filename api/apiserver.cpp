@@ -124,7 +124,7 @@ void Server::task()
     
     logger_->log("Client connected");
 
-    std::array<char, 1024> buf;
+    std::vector<char> buf (SampleBufferSize, 0);
 
     logger_->log("Starting handler loop");
 
@@ -415,7 +415,7 @@ void Server::task()
       }
       
       // <-- | sz | op |
-      // --> | sz | op | nsamples |
+      // --> | sz | op | nsamples (size_t) | total_size (size_t)|
       // <-- | sz | op | sample | (nsamples times)
       case GetSamples:
       {
@@ -425,18 +425,13 @@ void Server::task()
 
         logger_->log(std::string("samples ") + std::to_string(nSamples));
         
-        if (nSamples >= 1 << 16)
-        {
-          sendError(psock, "Too much samples :(");
-          Lock _ (analMutex_);
-          samples_.clear();
-        }
+        char tmp_buf [256];
 
-        *reinterpret_cast<uint16_t*>(buf.data()) = 5;
-        buf[2] = GetSamples;
-        *reinterpret_cast<uint16_t*>(buf.data() + 3) = nSamples;
+        *reinterpret_cast<uint16_t*>(tmp_buf) = 3 + 2 * sizeof(size_t);
+        tmp_buf[2] = GetSamples;
+        *reinterpret_cast<size_t*>(tmp_buf + 3) = nSamples;
 
-        writeAll(psock, buf.data(), 5);
+        size_t samples_size = 0;
 
         for (size_t i = 0; i < nSamples; ++i)
         {
@@ -447,13 +442,16 @@ void Server::task()
           ds << v;
 
           uint16_t sz = arr.size() + 3;
-          *reinterpret_cast<uint16_t*>(buf.data()) = sz;
-          buf[2] = GetSamples;
+          *reinterpret_cast<uint16_t*>(buf.data() + samples_size) = sz;
+          buf[samples_size + 2] = GetSamples;
 
-          memcpy(buf.data() + 3, arr.data(), arr.size());
-
-          writeAll(psock, buf.data(), sz);
+          memcpy(buf.data() + 3 + samples_size, arr.data(), arr.size());
+          samples_size += sz;
         }
+
+        *reinterpret_cast<size_t*>(tmp_buf + 3 + sizeof(size_t)) = samples_size;
+        writeAll(psock, tmp_buf, 3 + sizeof(size_t) + sizeof(size_t));
+        writeAll(psock, buf.data(), samples_size);
 
         Lock _ (analMutex_);
         samples_.clear();
