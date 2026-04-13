@@ -6,6 +6,8 @@
 namespace API
 {
 
+static constexpr size_t SampleBufferSize = 16ull * 1024 * 1024;
+
 int readAll(QTcpSocket* psock, char* buf, size_t sz);
 int peekAll(QTcpSocket* psock, char* buf, size_t sz);
 int writeAll(QTcpSocket* psock, const char* buf, size_t sz);
