@@ -16,6 +16,10 @@ CONFIG(release,debug|release) {
     }
 }
 
+CONFIG(static, static|shared) {
+    DESTDIR = $$DESTDIR/../bin
+}
+
 CONFIG += c++14
 
 # Uncomment supported ONB interfaces
@@ -33,9 +37,11 @@ include($$COMPONENTS/commlib/commlib.pri)
 include($$COMPONENTS/megaWidgets/megaWidgets.pri)
 
 win32: {
+  CONFIG(shared, static|shared) {
     CONFIG(release,debug|release) {
         QMAKE_POST_LINK += windeployqt --no-translations $$DESTDIR
     }
+  }
 }
 
 SOURCES += main.cpp\
