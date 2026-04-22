@@ -9,8 +9,11 @@ QT       += core widgets network
 TARGET = onbApiClient
 TEMPLATE = lib
 CONFIG += staticlib c++14
+DESTDIR = $$PWD/bin
 
 OBJNET_DIR = $$(OBJNET_DIR)
+
+CONFIG += static
 
 INCLUDEPATH += $$OBJNET_DIR
 INCLUDEPATH += $$OBJNET_DIR/..

@@ -96,6 +96,9 @@ PlotWidget::PlotWidget(QWidget *parent) :
     });
     trigButtons[TriggerOff]->setChecked(true);
 
+    QPushButton *copyBtn = new QPushButton("Copy to clipboard");
+    connect(copyBtn, &QPushButton::clicked, this, &PlotWidget::getSnapshot);
+
     QGridLayout *lay = new QGridLayout;
     setLayout(lay);
     lay->setContentsMargins(0, 0, 0, 0);
@@ -104,6 +107,7 @@ PlotWidget::PlotWidget(QWidget *parent) :
     lay->addWidget(mGraph, 0, 1, 3, 1);
     QVBoxLayout *vlay = new QVBoxLayout;
     lay->addLayout(vlay, 2, 0);
+    vlay->addWidget(copyBtn);
     QHBoxLayout *hlay = new QHBoxLayout;
     hlay->addWidget(new QLabel("Time window, s:"));
     hlay->addWidget(pointLimitSpin);
@@ -441,6 +445,15 @@ void PlotWidget::addPoint(QString name, float time, float val)
     mGraph->addPoint(name, time, val*zoomY);
     m_history[name] = val;
 
+////    float win = mGraph->xWindow();
+//    m_mean += (val - m_mean) * 0.001f;
+//    float sq = (val - m_mean) * (val - m_mean);
+//    m_disp += (sq - m_disp) * 0.001f;
+//    m_rms = sqrtf(m_disp);
+//    mGraph->addPoint("mean", time, m_mean);
+//    mGraph->addPoint("rms+", time, m_mean + m_rms);
+//    mGraph->addPoint("rms-", time, m_mean - m_rms);
+
     if (name == mTriggerSource->currentText())
     {
         float level = mTriggerLevel->text().toDouble();
@@ -613,4 +626,10 @@ void PlotWidget::onAutoRequestAccepted(QString objname, int periodMs)
             }
         }
     }
+}
+
+void PlotWidget::getSnapshot()
+{
+    QImage image = mGraph->grabFramebuffer();
+    QApplication::clipboard()->setImage(image);
 }

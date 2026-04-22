@@ -48,6 +48,9 @@ private:
     void regDevice(ObjnetDevice *dev);
     bool regObject(ObjnetDevice *dev, ObjectInfo *obj);
 
+    float m_mean = 0, m_disp = 0, m_rms = 0;
+//    QLineEdit *m_meanEdit, m_rmsEdit;
+
 private slots:
     void evalAutoTriggerLevel();
 
@@ -67,6 +70,7 @@ public slots:
     void updateObjectGroup(QVariantMap values);
     void updateTimedObject(QString name, uint32_t timestamp, QVariant value);
     void onAutoRequestAccepted(QString objname, int periodMs);
+    void getSnapshot();
 };
 
 #endif // PLOTWIDGET_H

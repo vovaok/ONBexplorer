@@ -33,6 +33,7 @@ private:
     QDoubleSpinBox *m_freqStartSpin;
     QDoubleSpinBox *m_freqEndSpin;
     QDoubleSpinBox *m_ampSpin;
+    QDoubleSpinBox *m_biasSpin;
     QDoubleSpinBox *m_durSpin;
     QSpinBox *m_filterSpin;
     QPushButton *m_btnStartStop;
@@ -41,6 +42,7 @@ private:
     float m_freqStart = 0;
     float m_freqEnd = 0;
     float m_amp = 0;
+    float m_bias = 0;
     float m_dur = 0;
     bool m_active = false;
 //    std::vector<std::string> m_inputNames;

@@ -16,6 +16,10 @@ CONFIG(release,debug|release) {
     }
 }
 
+CONFIG(static, static|shared) {
+    DESTDIR = $$DESTDIR/../bin
+}
+
 CONFIG += c++14
 
 # Uncomment supported ONB interfaces
@@ -24,7 +28,7 @@ DEFINES += ONB_SERIAL
 DEFINES += ONB_UDP
 DEFINES += ONB_VIRTUAL
 
-COMPONENTS = $$PWD/../components5
+COMPONENTS = $$(COMPONENTS5)
 message($$COMPONENTS)
 
 include($$COMPONENTS/onb/onb.pri)
@@ -33,17 +37,19 @@ include($$COMPONENTS/commlib/commlib.pri)
 include($$COMPONENTS/megaWidgets/megaWidgets.pri)
 
 win32: {
+  CONFIG(shared, static|shared) {
     CONFIG(release,debug|release) {
         QMAKE_POST_LINK += windeployqt --no-translations $$DESTDIR
     }
+  }
 }
 
 SOURCES += main.cpp\
-    ../components5/commlib/serialframe.cpp \
-    ../components5/commlib/serialportwidget.cpp \
-    ../components5/megaWidgets/graphwidget.cpp \
-    ../components5/onb/serialonbinterface.cpp \
-    ../components5/onb/udponbinterface.cpp \
+#    $$COMPONENTS/commlib/serialframe.cpp \
+#    $$COMPONENTS/commlib/serialportwidget.cpp \
+#    $$COMPONENTS/megaWidgets/graphwidget.cpp \
+#    $$COMPONENTS/onb/serialonbinterface.cpp \
+#    $$COMPONENTS/onb/udponbinterface.cpp \
     analyzerwidget.cpp \
     mainwindow.cpp \
     objlogger.cpp \
@@ -54,9 +60,9 @@ SOURCES += main.cpp\
     api/apiserver.cpp \
 
 HEADERS  += mainwindow.h \
-    ../components5/commlib/serialframe.h \
-    ../components5/commlib/serialportwidget.h \
-    ../components5/onb/serialonbinterface.h \
+#    $$COMPONENTS/commlib/serialframe.h \
+#    $$COMPONENTS/commlib/serialportwidget.h \
+#    $$COMPONENTS/onb/serialonbinterface.h \
     analyzerwidget.h \
     objlogger.h \
     plotwidget.h \
