@@ -41,6 +41,8 @@ public:
   template<typename T>
   T getParam(const std::string& dev, const std::string& param);
 
+  void fetchDevice(const std::string& dev);
+
   template<typename T>
   void setParam(const std::string& dev, const std::string& param, const T& value);
 
