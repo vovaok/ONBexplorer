@@ -331,6 +331,33 @@ void Server::task()
         writeAll(psock, buf.data(), sz);
         break;
       }
+
+      // <-- | sz | op | dev + \0 |
+      // --> | sz | op |
+      case FetchDevice:
+      {
+        if (in_sz < 2 + 1 + 2)
+        {
+          sendError(psock, "Parse error");
+          break;
+        }
+
+        ObjnetDevice* dev = getDevice(buf.data() + 3);
+        if (!dev) { sendError(psock, "No device"); break; }
+
+        if (!dev->isInfoValid())
+            dev->requestMetaInfo();
+        else if (!dev->isReady())
+          for (int i = 0; i < dev->objectCount(); i++)
+            if (!dev->objectInfo(i) || !dev->objectInfo(i)->isValid())
+                dev->requestObjectInfo(i);
+
+        *reinterpret_cast<uint16_t*>(buf.data()) = 3;
+        buf[2] = FetchDevice;
+
+        writeAll(psock, buf.data(), 3);
+        break;
+      }
       
       // <-- | sz | op | dev + \0 |
       // --> | sz | op | [param\0]* |
