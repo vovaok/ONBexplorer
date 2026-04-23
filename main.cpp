@@ -11,8 +11,16 @@ int main(int argc, char *argv[])
     QSurfaceFormat::setDefaultFormat(format);
 
     QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
+
+    QStringList arguments = QCoreApplication::arguments();
+    bool minim = arguments.contains("--minimized");
+
+    MainWindow w(minim);
+
+    if (minim)
+        w.showMinimized();
+    else
+        w.show();
     
     return a.exec();
 }

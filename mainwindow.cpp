@@ -1,9 +1,10 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(bool minimized, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
+    m_minimized(minimized),
     upg(0L),
     sent(0),
     received(0),

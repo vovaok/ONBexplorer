@@ -43,7 +43,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(bool minimized = false, QWidget *parent = nullptr);
     ~MainWindow();
 
 protected:
@@ -56,6 +56,8 @@ private:
     QPushButton *mLogEnableBtn, *btnResetStat;
     
     QTextEdit *editLog;
+
+    bool m_minimized = false;
 
     struct APILogger final: public API::Server::ILogger
     {
