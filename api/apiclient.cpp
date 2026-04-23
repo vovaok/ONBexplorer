@@ -204,6 +204,22 @@ std::vector<std::string> Client::listParams(const std::string& dev)
   return ret;
 }
 
+void Client::fetchDevice(const std::string& dev)
+{
+  size_t devLen = dev.size() + 1;
+  size_t sz = 3 + devLen;
+  setPacketSize(sz);
+
+  buf_[2] = MessageT::FetchDevice;
+
+  memcpy(buf_.data() + 3, dev.c_str(), devLen);
+
+  writeAll(&pimpl_->socket_, buf_.data(), sz);
+
+  readPacket();
+  PYASSERT(buf_[2] == MessageT::FetchDevice);
+}
+
 void Client::setAGRequest(const std::string& dev, uint16_t interval, const std::vector<std::string>& params)
 {
   uint16_t sz = 4 + dev.size() + 1 + 3;

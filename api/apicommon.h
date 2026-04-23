@@ -27,6 +27,10 @@ enum MessageT: char
   ListDevices = 'd',
 
   // <-- | sz | op | dev + \0 |
+  // --> | sz | op |
+  FetchDevice = 'f',
+
+  // <-- | sz | op | dev + \0 |
   // --> | sz | op | [param\0]* | \0 |
   ListParams = 'p',
 
