@@ -19,8 +19,8 @@
 #include "udponbinterface.h"
 #endif
 
-#include "objnetmaster.h"
 #include "objnetnode.h"
+#include "objnetmaster.h"
 
 #include "objtable.h"
 #include "plotwidget.h"
