@@ -45,8 +45,11 @@ void Server::addDevice(ObjnetDevice* dev)
   connect(dev,  &ObjnetDevice::objectGroupReceived, 
           this, &Server::onSampleReceived);
 
-  //dev->requestMetaInfo();
-  //dev->requestObjects();
+  if (!dev->isReady())
+  {
+//    dev->requestMetaInfo();
+//    dev->requestObjects();
+  }
 }
 
 void Server::onObjectReceived(QString name, QVariant)
@@ -136,6 +139,11 @@ void Server::task()
 
     while(psock->isOpen() && !_the_endec)
     {
+        if (psock->bytesAvailable() <= 0)
+        {
+            psock->waitForReadyRead(1);
+            continue;
+        }
       if(peekAll(psock, buf.data(), 2) < 0) break;
       uint16_t in_sz = *reinterpret_cast<uint16_t*>(buf.data());
 
