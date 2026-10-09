@@ -41,7 +41,7 @@ private:
     void addPoint(QString name, float time, float val);
     void removeGraph(QString name);
 
-    void addObjname(unsigned long serial, QString objname, int childCount=0);
+    void addObjname(unsigned long serial, QString objname, int childCount=0, QStringList childNames=QStringList());
     void removeObjname(unsigned long serial, QString objname);
     int getRow(unsigned long serial, QString objname);
 

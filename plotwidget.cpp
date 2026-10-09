@@ -260,7 +260,22 @@ bool PlotWidget::regObject(ObjnetDevice *dev, ObjectInfo *obj)
     if (!mVarNames[ser].contains(obj->name()))
     {
         mVarNames[ser] << obj->name();
-        addObjname(ser, obj->name(), obj->isArray()? obj->wCount(): 0);
+        if (obj->isCompound())
+        {
+            QStringList names;
+            int cnt = obj->subobjectCount();
+            for (int i=0; i<cnt; i++)
+                names << obj->subobject(i).name();
+            addObjname(ser, obj->name(), cnt, names);
+        }
+        else if (obj->isArray())
+        {
+            addObjname(ser, obj->name(), obj->wCount());
+        }
+        else
+        {
+            addObjname(ser, obj->name());
+        }
         return true;
     }
     return false;
@@ -271,7 +286,7 @@ void PlotWidget::evalAutoTriggerLevel()
 
 }
 
-void PlotWidget::addObjname(unsigned long serial, QString objname, int childCount)
+void PlotWidget::addObjname(unsigned long serial, QString objname, int childCount, QStringList childNames)
 {
     int row = getRow(serial, objname);
     QString graphname = mDevices[serial] + "." + objname;
@@ -330,6 +345,8 @@ void PlotWidget::addObjname(unsigned long serial, QString objname, int childCoun
     for (int i=0; i<childCount; i++, row++)
     {
         QString itemname = objname + "[" + QString::number(i) + "]";
+        if (i < childNames.size())
+            itemname = objname + "." + childNames[i];
 
         QCheckBox *chk1 = new QCheckBox(itemname);
         childChecks << chk1;
@@ -505,8 +522,16 @@ void PlotWidget::updateObject(QString name, QVariant value)
         {
             QString graphname = mDevices[ser] + "." + name;
             QVariantList list = value.toList();
-            if (list.isEmpty())
+            QVariantMap map = value.toMap();
+            if (list.isEmpty() && map.isEmpty())
                 addPoint(graphname, value.toFloat());
+            else if (list.isEmpty()) // this is mapa
+            {
+                for (QString key: map.keys())
+                {
+                    addPoint(graphname+"."+key, map[key].toFloat());
+                }
+            }
             else if (o && !o->wCount()) // this is buffer (BLEAT WTF??)
             {
                 for (int i=0; i<list.size(); i++)
@@ -584,8 +609,16 @@ void PlotWidget::updateTimedObject(QString name, uint32_t timestamp, QVariant va
 
             QString graphname = mDevices[ser] + "." + name;
             QVariantList list = value.toList();
-            if (list.isEmpty())
+            QVariantMap map = value.toMap();
+            if (list.isEmpty() && map.isEmpty())
                 addPoint(graphname, mTime, value.toFloat());
+            else if (list.isEmpty()) // this is mapa
+            {
+                for (QString key: map.keys())
+                {
+                    addPoint(graphname+"."+key, mTime, map[key].toFloat());
+                }
+            }
             else if (o && !o->wCount()) // this is buffer (BLEAT WTF??)
             {
                 for (int i=0; i<list.size(); i++)

@@ -99,7 +99,10 @@ QList<QStandardItem *> ObjTable::createRow(ObjectInfo *info)
     QString name = info->name();
 
     QStandardItem *nameItem = new QStandardItem(name);
-    nameItem->setData(info->id(), Qt::UserRole);
+    ObjectInfo *poi;
+    for (poi=info; poi->parentObject(); poi=poi->parentObject());
+    int idx = poi->id();
+    nameItem->setData(idx, Qt::UserRole);
     nameItem->setEditable(false);
 
     QString wt = QMetaType::typeName(info->wType());
