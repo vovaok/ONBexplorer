@@ -53,7 +53,7 @@ void ObjTable::updateTable()
             if (info)
             {
                 root->appendRow(createRow(info));
-                if (info->isWritable() && !info->isInvokable()) // read-write naoborot
+                if (info->isWritable() && !(info->isInvokable() && info->isReadable())) // read-write naoborot
                 {
                     if (info->isVolatile() && !info->isBuffer())
                         m_device->autoRequest(info->name(), -1); // request autoRequest
@@ -68,7 +68,7 @@ void ObjTable::updateTable()
         {
             ObjectInfo *info = m_device->objectInfo(i);
             QString name = info->name();
-            if (info->flags() & ObjectInfo::Function)
+            if (info->isInvokable() && !info->isVolatile())
             {
                 QPushButton *btn = new QPushButton(name);
                 setIndexWidget(m_model.index(i, 0), btn);
@@ -267,7 +267,7 @@ void ObjTable::itemChanged(QStandardItem *item)
             item = m_model.itemFromIndex(item->index().siblingAtColumn(0));
         updateItem(m_model.invisibleRootItem(), item->text(), val);
 
-        if (!(info->flags() & ObjectInfo::Function))
+        if (info->isVolatile()) // !(info->isInvokable())
             m_device->sendObject(info->name());
     }
 }

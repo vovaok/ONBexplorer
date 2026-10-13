@@ -20,7 +20,7 @@ CONFIG(static, static|shared) {
     DESTDIR = $$DESTDIR/../bin
 }
 
-CONFIG += c++14
+CONFIG += c++17
 
 # Uncomment supported ONB interfaces
 DEFINES += ONB_SERIAL
