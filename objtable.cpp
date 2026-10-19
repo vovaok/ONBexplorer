@@ -267,7 +267,7 @@ void ObjTable::itemChanged(QStandardItem *item)
             item = m_model.itemFromIndex(item->index().siblingAtColumn(0));
         updateItem(m_model.invisibleRootItem(), item->text(), val);
 
-        if (info->isVolatile()) // !(info->isInvokable())
+        if (info->isVolatile() || !info->isInvokable())
             m_device->sendObject(info->name());
     }
 }
