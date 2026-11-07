@@ -3,6 +3,7 @@
 
 int main(int argc, char *argv[])
 {
+    QCoreApplication::setOrganizationName("vova_ok");
     QCoreApplication::setApplicationName("ONBexplorer");
 
     QSurfaceFormat format;
